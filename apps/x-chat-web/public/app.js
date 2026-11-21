@@ -2450,6 +2450,16 @@ function sameConversationId(localId, deliveredId) {
 
 let liveRefreshTimer = null;
 let liveListTimer = null;
+let liveStreamWasConnected = false;
+
+// X only backfills for entitled apps, so a reconnect can have missed events.
+// The first frame after a (re)connect pulls what the gap may have hidden.
+function onLiveStreamConnected() {
+  if (liveStreamWasConnected) return;
+  liveStreamWasConnected = true;
+  scheduleConversationListRefresh();
+  if (state.conversationId) scheduleConversationRefresh(200);
+}
 
 function scheduleConversationListRefresh() {
   if (liveListTimer || !state.myId) return;
@@ -2504,6 +2514,8 @@ function startLiveStream() {
     if (!frame) return;
     setLiveStreamStatus(frame.state, frame.attempt);
     noteStreamFailure(frame);
+    if (frame.state === "connected") onLiveStreamConnected();
+    else liveStreamWasConnected = false;
     if (frame.state === "auth-required") {
       source.close();
       state.liveStream = null;

@@ -206,7 +206,41 @@ test("stream frames are parsed across chunks, deduplicated, and filtered to chat
   assert.ok(states.includes("connected"));
   assert.ok(states.includes("stopped"));
   const streamCall = calls.find((call) => call.path.startsWith(ACTIVITY_STREAM_PATH));
-  assert.equal(streamCall.path, `${ACTIVITY_STREAM_PATH}?backfill_minutes=${MAX_BACKFILL_MINUTES}`);
+  assert.equal(streamCall.path, ACTIVITY_STREAM_PATH, "backfill is refused for apps without the entitlement");
+});
+
+test("backfill is requested only when the operator opts in", async () => {
+  const routes = {
+    [ACTIVITY_SUBSCRIPTIONS_PATH]: () => jsonResponse({ data: { id: "sub-1" } }, 201),
+    [ACTIVITY_STREAM_PATH]: () => new Response(new ReadableStream({ start() {} }), { status: 200 }),
+  };
+  const requested = [];
+  const record = async (path, options = {}) => {
+    requested.push(path);
+    return routes[path](options);
+  };
+  /** @type {Array<[unknown, string]>} */
+  const cases = [
+    [5, `${ACTIVITY_STREAM_PATH}?backfill_minutes=5`],
+    [9, `${ACTIVITY_STREAM_PATH}?backfill_minutes=${MAX_BACKFILL_MINUTES}`],
+    [-2, ACTIVITY_STREAM_PATH],
+    ["", ACTIVITY_STREAM_PATH],
+  ];
+  for (const [backfillMinutes, expected] of cases) {
+    requested.length = 0;
+    const activity = createActivityStream({
+      request: record,
+      sleep: testSleep(),
+      backfillMinutes: /** @type {number} */ (backfillMinutes),
+    });
+    await activity.start(ownerId);
+    await waitFor(() => requested.some((path) => path.startsWith(ACTIVITY_STREAM_PATH)));
+    await activity.stop();
+    assert.equal(
+      requested.find((path) => path.startsWith(ACTIVITY_STREAM_PATH)),
+      expected,
+    );
+  }
 });
 
 test("a dropped stream reconnects with backoff before delivering again", async () => {

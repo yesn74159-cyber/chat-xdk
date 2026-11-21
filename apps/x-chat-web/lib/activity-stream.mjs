@@ -94,9 +94,15 @@ function isDuplicateSubscription(error) {
  *   request: (path: string, options?: { method?: string, body?: unknown, signal?: AbortSignal }) => Promise<Response>,
  *   sleep?: (ms: number, signal?: AbortSignal) => Promise<void>,
  *   onAuthRequired?: (error: Error) => void,
+ *   backfillMinutes?: number,
  * }} options
  */
-export function createActivityStream({ request, sleep = sleepDefault, onAuthRequired = () => {} }) {
+export function createActivityStream({
+  request,
+  sleep = sleepDefault,
+  onAuthRequired = () => {},
+  backfillMinutes = 0,
+}) {
   /** @type {Map<string, string>} */
   const subscriptions = new Map();
   /** @type {Set<(frame: ChatFrame | StatusFrame) => void>} */
@@ -106,6 +112,11 @@ export function createActivityStream({ request, sleep = sleepDefault, onAuthRequ
   let controller = null;
   let running = null;
   let status = { state: "idle", attempt: 0, delivered: 0, error: "", updatedAt: "" };
+  // X answers 400 "Stream is not authorized to use backfill_minutes" for apps
+  // without that entitlement, so the parameter only goes out when asked for.
+  const requestedBackfill = Math.trunc(Number(backfillMinutes) || 0);
+  const backfill = Math.min(Math.max(requestedBackfill, 0), MAX_BACKFILL_MINUTES);
+  const streamPath = backfill ? `${ACTIVITY_STREAM_PATH}?backfill_minutes=${backfill}` : ACTIVITY_STREAM_PATH;
 
   function setStatus(state, attempt, error = "") {
     status = { ...status, state, attempt, error, updatedAt: new Date().toISOString() };
@@ -227,9 +238,7 @@ export function createActivityStream({ request, sleep = sleepDefault, onAuthRequ
     setStatus(attempt === 0 ? "connecting" : "reconnecting", attempt);
     while (!signal.aborted) {
       try {
-        const response = await request(`${ACTIVITY_STREAM_PATH}?backfill_minutes=${MAX_BACKFILL_MINUTES}`, {
-          signal,
-        });
+        const response = await request(streamPath, { signal });
         if (response.status === 401 || response.status === 403) {
           const error = Object.assign(
             new Error(`activity stream authentication expired${await problemDetail(response, 200)}`),

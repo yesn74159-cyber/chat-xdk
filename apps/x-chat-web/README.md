@@ -22,7 +22,10 @@ and the single list of what the prototype does not do is
    need the app's **App-only Bearer Token** in `X_APP_BEARER_TOKEN` (or the
    hidden prompt in `npm run start:live`): X wants the user context for
    `chat.*` subscriptions but rejects it on `/2/activity/stream`, which only
-   accepts the app Bearer. The documented baseline
+   accepts the app Bearer. The stream asks for no backfill by default because X
+   refuses `backfill_minutes` for apps without that entitlement; set
+   `X_CHAT_ACTIVITY_BACKFILL_MINUTES` (0-5) only after confirming it. The
+   documented baseline
    scopes are `dm.read`, `dm.write`, `tweet.read`, and `users.read`; image
    upload additionally needs `media.write`. Confirm the exact scopes against
    the operations enabled for the X Developer app, and follow
@@ -99,8 +102,9 @@ engine as unsupported rather than assuming it works.
 - Media upload initializes with the encrypted byte count; the signed attachment
   records the original plaintext file size.
 - Refresh loads the first page of events and accompanying KeyChange events;
-  **โหลดประวัติเพิ่ม** follows the API's `next_token` cursor. Real-time delivery
-  is still a next step.
+  **โหลดประวัติเพิ่ม** follows the API's `next_token` cursor. In live mode
+  `chat.received`/`chat.sent` also arrive over `/api/stream` (SSE) once the App-only
+  Bearer is configured; the chip in the header shows the stream state.
 - If a send response is ambiguous, the retry button resends the same encrypted payload and `message_id` during the current page session. A reload clears that in-memory retry state; check the conversation before sending a new message.
 - A successful local HTTP response, page load or offline crypto round trip is **not** a live X send/receive result.
 - Do not expose this server beyond loopback, persist raw keys, or commit access tokens.

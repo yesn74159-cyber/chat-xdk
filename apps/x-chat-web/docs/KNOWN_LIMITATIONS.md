@@ -16,9 +16,12 @@ team or live deployment needs a new review rather than inheriting this list.
   there is no "show anyway" path. There is also no recovery flow if a signing
   key was permanently removed from the public-key endpoint; the UI reports the
   missing key instead of guessing.
-- The app does not implement history pagination to exhaustion in live mode,
-  real-time `chat.received`/`chat.sent` streams or webhooks, reconnect/backfill
-  or monotonic key-version reconciliation across live delivery.
+- The app does not implement history pagination to exhaustion in live mode or
+  webhooks. Real-time `chat.received`/`chat.sent` delivery runs over the X
+  activity stream with bounded reconnect backoff, but X refuses
+  `backfill_minutes` for this developer app, so a gap while disconnected is only
+  covered by the history refresh the page runs when the stream reconnects;
+  monotonic key-version reconciliation across live delivery is still open.
 
 ## Product scope
 

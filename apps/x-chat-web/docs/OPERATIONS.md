@@ -25,6 +25,7 @@ Configuration is read only from the server process environment:
 | `X_OAUTH_SCOPES`                              | Space-separated OAuth scopes                          | Defaults include `media.write`; add `offline.access` when approved |
 | `X_OAUTH_AUTHORIZE_URL`, `X_OAUTH_TOKEN_URL`  | OAuth endpoints (tests/rehearsal only)                | Default X endpoints                                                |
 | `X_APP_BEARER_TOKEN`                          | App-only Bearer Token for the activity stream         | Env-only or hidden prompt; real-time is off without it             |
+| `X_CHAT_ACTIVITY_BACKFILL_MINUTES`            | Minutes of X backfill to request on the stream (0-5)  | Default `0`; X answers 400 unless the app is entitled              |
 | `X_API_BASE_URL`                              | X API base URL (tests only)                           | Default `https://api.x.com`                                        |
 | `X_CHAT_LIVE_OWNER_USER_ID`                   | Single-use Live Create owner ID                       | All four Live Create values must be present and valid              |
 | `X_CHAT_LIVE_OWNER_USERNAME`                  | Single-use Live Create owner username                 | Env-only                                                           |

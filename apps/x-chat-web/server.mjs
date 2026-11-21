@@ -40,6 +40,8 @@ const staticToken = process.env.X_ACCESS_TOKEN || "";
 // them; only the stream is app-authenticated and rejects a user token. Without
 // a bearer the stream still tries the user token so the inbox keeps working.
 const appBearerToken = process.env.X_APP_BEARER_TOKEN || "";
+// X refuses backfill for apps without the entitlement, so it stays opt-in.
+const activityBackfillMinutes = Number(process.env.X_CHAT_ACTIVITY_BACKFILL_MINUTES || 0) || 0;
 const mode = process.env.X_CHAT_API_MODE || "live";
 const xBase = process.env.X_API_BASE_URL || "https://api.x.com";
 const oauthScopes = (process.env.X_OAUTH_SCOPES || "").trim();
@@ -100,7 +102,8 @@ const liveCreatePermit = createLiveCreatePermit();
 const startedAt = Date.now();
 const metrics = { requests: 0, responses: new Map(), serverErrors: 0 };
 
-const liveActivity = mode === "mock" ? null : createActivityStream({ request: activityRequest });
+const liveActivity =
+  mode === "mock" ? null : createActivityStream({ request: activityRequest, backfillMinutes: activityBackfillMinutes });
 const streamClients = new Set();
 const ACTIVITY_ERROR_TTL_MS = 60_000;
 let activityOwnerId = "";

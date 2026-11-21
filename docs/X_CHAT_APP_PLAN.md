@@ -1,6 +1,6 @@
 # แผนแอป X Chat: ข้อความ ลิงก์ และภาพเป็นอันดับแรก
 
-สถานะ: อัปเดต (2026-11-21) — ต้นแบบ local-only ที่ `apps/x-chat-web/` ผ่าน offline/mock/static gate ในเครื่อง (155 offline + 22 mock), มีคู่มือผู้ใช้ภาษาไทย, a11y audit บางส่วน และ cross-tab cache guard; LIVE_PASS ปิดครบแล้ว (ข้อความ/URL/ภาพสองทาง, multi-part, B-side verify, negative cases) พร้อมถอน OAuth 2.0 access token และลบไฟล์ทดสอบ — real-time events ต่อผ่าน `/api/stream` (SSE) แล้ว เหลือ UAT กับบัญชีจริง; เฟสถัดไปคือ inbox persistence; ข้อที่ติดบัญชี/สิทธิ์ดูหัวข้อ "สิ่งที่ยังติด (Blocked)"
+สถานะ: อัปเดต (2026-11-21) — ต้นแบบ local-only ที่ `apps/x-chat-web/` ผ่าน offline/mock/static gate ในเครื่อง (156 offline + 22 mock), มีคู่มือผู้ใช้ภาษาไทย, a11y audit บางส่วน และ cross-tab cache guard; LIVE_PASS ปิดครบแล้ว (ข้อความ/URL/ภาพสองทาง, multi-part, B-side verify, negative cases) พร้อมถอน OAuth 2.0 access token และลบไฟล์ทดสอบ — real-time events ต่อผ่าน `/api/stream` (SSE) แล้ว เหลือ UAT กับบัญชีจริง; เฟสถัดไปคือ inbox persistence; ข้อที่ติดบัญชี/สิทธิ์ดูหัวข้อ "สิ่งที่ยังติด (Blocked)"
 
 ## สถานะงานปัจจุบัน
 
@@ -230,8 +230,11 @@ token (ไม่ได้ขอ `offline.access`) — แอปจึงเพ�
       เพราะแอปเป็น loopback-only (`127.0.0.1`) และ webhook บังคับใช้ public
       HTTPS บนพอร์ต 443 + CRC/signature/replay window ซึ่งไม่มีในเครื่องนี้;
       subscription ใช้ `chat.received` + `chat.sent` กับ filter `user_id`
-      ฝั่ง user-context, backfill สูงสุด 5 นาทีต่อการเชื่อมต่อ จึงใช้
-      `backfill_minutes=5` ตอน reconnect และพึ่ง history pagination เติมช่องว่างที่นานกว่า;
+      ฝั่ง user-context; `backfill_minutes` X ปฏิเสธกับแอปที่ไม่มีสิทธิ์
+      (HTTP 400 `Stream is not authorized to use backfill_minutes parameter`) จึงปิดไว้
+      เป็นค่าเริ่มต้นและเปิดได้ผ่าน `X_CHAT_ACTIVITY_BACKFILL_MINUTES` (0-5) เมื่อตรวจสอบ
+      สิทธิ์แล้ว ช่องว่างตอน reconnect จึงเติมด้วย history pagination โดยเบราว์เซอร์
+      refresh รายการบทสนทนาและห้องที่เปิดอยู่ทันทีที่ stream เข้าสถานะ `connected`;
       2026-11-21 ทดลองกับบัญชีจริง: X ตอบ 403 "Unsupported Authentication" เมื่อใช้
       user-context กับ stream และ 403 "like.read" เมื่อ list subscription — จึงแยก
       credential ตามเอกสาร X Chat (chat.\* เป็น private event: สร้าง subscription
@@ -244,8 +247,8 @@ token (ไม่ได้ขอ `offline.access`) — แอปจึงเพ�
       เพราะตัว subscription เองไม่มี state ที่ต้อง cleanup และคงไว้ให้ reconnect
       ใช้ backfill ต่อได้โดยไม่ต้องสร้างซ้ำ)
 - [ ] สำหรับ webhook: HTTPS, verification/CRC, request signature verification, replay window และ rate limit (ยังไม่ทำ — ไม่ได้เลือกเส้นทางนี้ในรุ่น local-only)
-- [x] สำหรับ stream: reconnect with bounded backoff (500ms→30s), `backfill_minutes=5`
-      ต่อการเชื่อมต่อ, dedup ด้วย `event_uuid` (จำกัด 1,000 รายการ) และ cancellation
+- [x] สำหรับ stream: reconnect with bounded backoff (500ms→30s), `backfill_minutes`
+      แบบ opt-in (ค่าเริ่มต้นไม่ส่งเพราะ X ปฏิเสธ), dedup ด้วย `event_uuid` (จำกัด 1,000 รายการ) และ cancellation
       ผ่าน AbortController เมื่อไม่มี SSE client
 - [x] รับ `chat.received` และ `chat.sent`; ผูก event กับ conversation
       (normalize แล้วส่งออกทาง `/api/stream`; ฝั่งเบราว์เซอร์ refresh เฉพาะห้องที่เปิด
