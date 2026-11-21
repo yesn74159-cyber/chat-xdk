@@ -230,13 +230,32 @@
       IndexedDB/`<dialog>`; `npm run test:browser` รัน matrix จริงบน Chrome 158
       และ Edge 155 ที่ 1280×900 + 375×812 — ดู README §Supported browsers)
 - [ ] ทำ reproducible build, signed artifacts และ dependency/license/SBOM review
-- [ ] แยก dev/test/prod configuration และ secret stores; ไม่มี production secret ใน build artifact
-- [ ] ทำ environment setup, migration, backup/restore และ rollback runbook
+      (ทำแล้วบางส่วน: lockfile ถูก commit และ CI ใช้ `npm ci` บน Node 20/22;
+      `npm run build` สองรอบติดกันได้ไฟล์ชุดเดียวกันและ SHA-256 ต่อไฟล์ตรงกัน
+      (ตรวจ 2026-11-21); `npm run sbom` สร้าง CycloneDX ของ production deps และ
+      CI อัปโหลด artifact; production deps เป็น MIT ทั้งคู่และ transitive notices
+      อยู่ใน `THIRD_PARTY_NOTICES.md`; ยังขาด signed/attested artifacts เพราะยัง
+      ไม่มี release-signing key หรือช่องทาง publish — ต้องให้ owner ตัดสินก่อน)
+- [x] แยก dev/test/prod configuration และ secret stores; ไม่มี production secret ใน build artifact
+      (ทำแล้ว: ตาราง env ทั้งหมดอยู่ใน `docs/OPERATIONS.md`; dev=start:mock,
+      test=spawn mock PORT=0, prod=`X_CHAT_API_MODE=live` + `X_ACCESS_TOKEN`
+      จาก process env เท่านั้น (ไม่รองรับ `.env`); build ใช้ Vite ชุดเดียวกันทุก
+      env โดยไม่ define secret และ grep build output ไม่พบ `X_ACCESS_TOKEN`/
+      `X_CHAT_LIVE_*` (2026-11-21); token ที่ขาดทำให้ live ปิดแบบ fail-closed)
+- [x] ทำ environment setup, migration, backup/restore และ rollback runbook
+      (ทำแล้ว: `docs/OPERATIONS.md` ครอบ clean setup, build/SBOM, cache
+      export/import/delete, upgrade แบบ `npm ci` + cache envelope version,
+      rollback ด้วย git revert + ข้อจำกัด envelope เวอร์ชันใหม่, และ gate
+      verification; เหตุ credential/key ยังอ้าง `INCIDENT_RESPONSE.md`)
 - [ ] ทำ monitoring, alert, error triage และ incident/on-call ownership โดย redaction เป็นค่าเริ่มต้น
 - [ ] ทำ privacy notice, terms/acceptable-use, data deletion path และ support process ตามรูปแบบ deployment
 - [ ] ทำ penetration/security review, accessibility review และ performance/reliability test ตาม risk
 - [ ] ทำ release candidate UAT: P1–P8 ที่อยู่ในขอบเขตต้องผ่าน พร้อม evidence และ known limitations ที่อนุมัติ
-- [ ] ตั้ง versioning/changelog/release notes และ upgrade/downgrade compatibility plan
+- [x] ตั้ง versioning/changelog/release notes และ upgrade/downgrade compatibility plan
+      (ทำแล้ว: `apps/x-chat-web/CHANGELOG.md` เริ่มที่ 0.1.0 (2026-11-21) พร้อม
+      known limitations; นโยบาย SemVer 0.x + cache envelope v1 ที่ปฏิเสธเวอร์ชัน
+      ที่ไม่รู้จัก, ต้อง export ก่อน upgrade/rollback, และ compatibility matrix
+      Node 20+/Chrome-Edge อยู่ใน `OPERATIONS.md`/README)
 - [ ] อนุมัติ go/no-go โดย product, security และ operations owners
 - [ ] เปิด rollout แบบจำกัดกลุ่มผู้ใช้ที่ยินยอม พร้อม metrics และ rollback threshold
 - [ ] ขยาย rollout เมื่อเกณฑ์ reliability/security/support ผ่านตามที่กำหนด

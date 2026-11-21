@@ -4,6 +4,8 @@ Local, single-account web client for encrypted X Chat messages, basic URL text, 
 
 New here? The Thai walkthrough in [docs/USER_GUIDE_TH.md](docs/USER_GUIDE_TH.md)
 covers Mock mode, live setup, PIN unlock, sending, and troubleshooting end to end.
+The app version history is in [CHANGELOG.md](CHANGELOG.md), and setup, build,
+SBOM, backup/restore and rollback steps are in [docs/OPERATIONS.md](docs/OPERATIONS.md).
 
 ## Start
 
@@ -50,6 +52,9 @@ bounded Mock delivery queue, and verifies the offline path returns 503 with
 `retryable`. Tune with `SOAK_SECONDS`, `SOAK_CONCURRENCY`, `SOAK_MAX_P95_MS` and
 `SOAK_MAX_HEAP_GROWTH_MIB`; exit code is nonzero on unexpected 5xx, unbounded
 heap growth, or a latency miss.
+
+`npm run sbom` prints a CycloneDX SBOM of production dependencies (CI uploads
+the same artifact for Node 20 and 22).
 
 For adapter testing without X credentials or network calls, run `npm run start:mock`
 (equivalent to `X_CHAT_API_MODE=mock npm start`, but shell-independent). Mock
