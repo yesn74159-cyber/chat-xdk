@@ -1338,6 +1338,27 @@ textarea {
   color: #a9c9ff;
 }
 
+.settings-section > summary .summary-hint {
+  display: block;
+  margin-top: 4px;
+  color: #77869a;
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.settings-group {
+  margin: 18px 0 -6px;
+  color: #77869a;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.12em;
+}
+
+.settings-content > .settings-group:first-child {
+  margin-top: 0;
+}
+
 .settings-section p {
   color: #8493a6;
   font-size: 11px;

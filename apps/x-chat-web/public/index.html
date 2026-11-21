@@ -121,6 +121,11 @@
                 disabled
               />
               <button id="unlock-key" class="primary-button full-width" type="button" disabled>ปลดล็อกกุญแจเดิม</button>
+              <p class="hint">
+                ลำดับที่ใช้ประจำ: <strong>ตรวจสอบบัญชี X</strong> → ใส่ <strong>Passcode 4 หลัก</strong> →
+                <strong>ปลดล็อกกุญแจเดิม</strong> แอปยืนยันตัวตนแล้วใช้กุญแจที่ลงทะเบียนไว้แล้วเท่านั้น
+                ไม่สร้างกุญแจใหม่และไม่เปลี่ยนคีย์
+              </p>
               <p id="unlock-status" class="unlock-status" role="status" aria-live="polite" data-phase="idle">
                 ยืนยันบัญชี X ก่อนปลดล็อก
               </p>
@@ -144,6 +149,7 @@
                 class="icon-button mobile-back"
                 type="button"
                 aria-label="กลับไปยังรายการบทสนทนา"
+                title="กลับไปรายการบทสนทนา"
               >
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6M9 12h11" /></svg>
               </button>
@@ -219,6 +225,11 @@
                     </svg>
                   </button>
                 </div>
+                <p class="hint">
+                  วิธีส่ง: พิมพ์ → <strong>สร้าง draft</strong> (เก็บในเครื่อง ยังไม่ส่งอะไร) → ตรวจผู้รับและเนื้อหา →
+                  <strong>อนุมัติและส่ง</strong> · <strong>ล้าง</strong> = ทิ้ง draft ใบนี้ · แนบภาพได้ 1 ไฟล์ PNG/JPEG
+                  ต่อข้อความ และเข้ารหัสก่อนอัปโหลดเสมอ
+                </p>
               </div>
             </form>
             <div class="composer-status">
@@ -284,8 +295,10 @@
           aria-labelledby="contact-live-preview-title"
           hidden
         >
-          <h3 id="contact-live-preview-title">Live Create Readiness Preview</h3>
-          <p class="live-preview-note">ตรวจสอบแบบอ่านอย่างเดียว; ไม่สร้างห้อง ไม่ส่งข้อความ และไม่เปลี่ยนกุญแจ</p>
+          <h3 id="contact-live-preview-title">ตรวจความพร้อมสร้างห้องจริง (Live Preview)</h3>
+          <p class="live-preview-note">
+            สำหรับนักพัฒนา: ตรวจสอบแบบอ่านอย่างเดียว; ไม่สร้างห้อง ไม่ส่งข้อความ และไม่เปลี่ยนกุญแจ
+          </p>
           <label class="contact-consent">
             <input id="contact-live-consent" type="checkbox" />
             <span>ยืนยันว่าผู้รับรายนี้ยินยอมเริ่มแชตเข้ารหัสกับบัญชีของฉัน</span>
@@ -325,33 +338,31 @@
       </header>
 
       <div class="settings-content">
-        <details class="settings-section">
-          <summary>ใช้ Private key blob แทน PIN unlock</summary>
-          <p class="hint">key blob อยู่ในหน่วยความจำของเบราว์เซอร์และไม่ส่งไปยัง local server</p>
-          <label for="key-blob">Private key blob (Base64)</label>
-          <textarea
-            id="key-blob"
-            rows="3"
-            autocomplete="off"
-            spellcheck="false"
-            placeholder="วาง key blob ที่ส่งออกไว้"
-          ></textarea>
-          <label for="key-version">Signing key version</label>
-          <input id="key-version" autocomplete="off" placeholder="public_key_version" />
-          <button id="load-keys" class="primary-button" type="button" disabled>โหลดกุญแจ</button>
-        </details>
+        <p class="settings-group">ใช้งานประจำ</p>
 
         <details class="settings-section">
-          <summary>เปิดบทสนทนาด้วย Conversation ID</summary>
-          <p class="hint">ใช้เฉพาะกรณีจำเป็น; รายการบทสนทนาที่ตรวจผู้เข้าร่วมแล้วเปิดได้โดยไม่ต้องกรอก ID</p>
+          <summary>
+            เปิดบทสนทนาด้วย Conversation ID
+            <span class="summary-hint">เปิดห้องตรง ๆ เมื่อห้องนั้นไม่อยู่ในรายการด้านซ้าย</span>
+          </summary>
+          <p class="hint">
+            ใช้เฉพาะกรณีจำเป็น; รายการบทสนทนาที่ตรวจผู้เข้าร่วมแล้วเปิดได้โดยไม่ต้องกรอก ID (รูปแบบ ID ที่ X
+            ใช้จริงคือตัวเลข-ขีด-ตัวเลข คัดลอกจากห้องในรายการได้)
+          </p>
           <label for="conversation-id">Conversation ID</label>
-          <input id="conversation-id" autocomplete="off" placeholder="เช่น 1234567890:9876543210" />
+          <input id="conversation-id" autocomplete="off" placeholder="เช่น 1234567890-9876543210" />
           <button id="connect" class="secondary-button" type="button" disabled>เปิดบทสนทนา</button>
         </details>
 
         <details class="settings-section">
-          <summary>จัดการ local ciphertext cache</summary>
-          <p>เก็บเฉพาะ signed ciphertext, metadata, unread และ delivery ID ใน IndexedDB ที่เข้ารหัส AES-GCM</p>
+          <summary>
+            จัดการ local ciphertext cache
+            <span class="summary-hint">สำรองและกู้คืนข้อความในเครื่อง เป็นไฟล์ ciphertext เท่านั้น</span>
+          </summary>
+          <p>
+            เก็บเฉพาะ signed ciphertext, metadata, unread และ delivery ID ใน IndexedDB ที่เข้ารหัส AES-GCM —
+            ไม่เคยเก็บข้อความ plaintext, กุญแจส่วนตัว, PIN หรือ token
+          </p>
           <label for="cache-passphrase">Passphrase สำหรับปลดล็อก cache</label>
           <input
             id="cache-passphrase"
@@ -370,8 +381,32 @@
           <p id="cache-status" class="hint" role="status">ยังไม่ได้ปลดล็อก cache</p>
         </details>
 
+        <p class="settings-group">สำหรับนักพัฒนา</p>
+
         <details class="settings-section">
-          <summary>สร้างแชตกลุ่มแบบเข้ารหัส</summary>
+          <summary>
+            ใช้ Private key blob แทน PIN unlock
+            <span class="summary-hint">เส้นทางสำรอง ใช้เมื่อ "ตรวจสอบบัญชี X" พัง</span>
+          </summary>
+          <p class="hint">key blob อยู่ในหน่วยความจำของเบราว์เซอร์และไม่ส่งไปยัง local server</p>
+          <label for="key-blob">Private key blob (Base64)</label>
+          <textarea
+            id="key-blob"
+            rows="3"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="วาง key blob ที่ส่งออกไว้"
+          ></textarea>
+          <label for="key-version">Signing key version</label>
+          <input id="key-version" autocomplete="off" placeholder="public_key_version" />
+          <button id="load-keys" class="primary-button" type="button" disabled>โหลดกุญแจ</button>
+        </details>
+
+        <details class="settings-section">
+          <summary>
+            สร้างแชตกลุ่มแบบเข้ารหัส
+            <span class="summary-hint">ยืนยันแล้วใน Mock เท่านั้น — กลุ่มบน X จริงยังไม่มีหลักฐานผ่าน</span>
+          </summary>
           <label for="group-title">ชื่อกลุ่ม</label>
           <input id="group-title" autocomplete="off" maxlength="120" placeholder="เช่น ทีมโปรเจกต์" />
           <label for="group-members">สมาชิก (X user ID)</label>
@@ -387,7 +422,10 @@
         </details>
 
         <details class="settings-section">
-          <summary>เปลี่ยนสมาชิกกลุ่ม (Mock)</summary>
+          <summary>
+            เปลี่ยนสมาชิกกลุ่ม (Mock)
+            <span class="summary-hint">บน X จริงเส้นทางนี้ยังตอบ 501 — ทำได้เฉพาะใน Mock</span>
+          </summary>
           <p>ตรวจ roster และ key version ก่อนทุกครั้ง แล้วหมุน key ใหม่ในเบราว์เซอร์</p>
           <label for="group-change-members">สมาชิกที่จะเพิ่ม/ลบ</label>
           <textarea
@@ -411,7 +449,10 @@
         </details>
 
         <details class="settings-section diagnostics-section">
-          <summary>Developer diagnostics และ Mock tools</summary>
+          <summary>
+            Developer diagnostics และ Mock tools
+            <span class="summary-hint">สร้างบัญชีทดสอบในเครื่อง + log วินิจฉัย (โหมด Mock)</span>
+          </summary>
           <p class="hint">เครื่องมือทดสอบและข้อมูลวินิจฉัยสำหรับ local development เท่านั้น</p>
           <button id="create-mock-identity" class="secondary-button" type="button" disabled>
             สร้างตัวตน Mock ชั่วคราว
