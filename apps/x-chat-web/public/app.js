@@ -261,6 +261,7 @@ import { groupMembersAddRequest, groupMembersRemoveRequest } from "/group-member
 import { createGateway } from "/gateway.mjs";
 import { lookupContactsWithLimit, parseContactUsernames } from "/multi-contact-lookup.mjs";
 import { cacheDocument, createCacheStore, decryptCacheDocument, encryptCacheDocument } from "/cache-vault.mjs";
+import { createCacheSync } from "/cache-sync.mjs";
 import { approveDraft, createDraft, discardDraft, toDraftAudit } from "/draft-queue.mjs";
 import { realmTokensFromConfig, unlockExistingIdentity } from "/pin-unlock.mjs";
 import { inspectEventMetadata } from "/event-metadata.mjs";
@@ -272,6 +273,7 @@ import {
 } from "/history-diagnostics.mjs";
 
 const el = (id) => document.getElementById(id);
+const cacheSync = createCacheSync();
 const state = {
   chat: null,
   myId: "",
@@ -303,6 +305,8 @@ const state = {
   audits: [],
   cachePassphrase: "",
   cacheStore: null,
+  cacheStale: false,
+  cacheWatchStarted: false,
   draft: null,
   draftFile: null,
   deliveryCursor: "0",
@@ -349,9 +353,23 @@ function cacheSummary() {
 }
 
 async function saveCache() {
-  if (!state.cacheStore || !state.cachePassphrase) return;
+  // Never write from a stale tab: another tab's newer document would be lost.
+  if (!state.cacheStore || !state.cachePassphrase || state.cacheStale) return;
   const envelope = await encryptCacheDocument(cacheSummary(), state.cachePassphrase);
   await state.cacheStore.save(envelope);
+  cacheSync.announce();
+}
+
+function markCacheStale() {
+  state.cacheStale = true;
+  el("cache-status").textContent = "มีแท็บอื่นบันทึก cache; ปลดล็อกด้วย passphrase อีกครั้งก่อนบันทึกทับ";
+  activity("แท็บอื่นแก้ไข local cache — หยุดบันทึกอัตโนมัติจนกว่าจะปลดล็อกใหม่");
+}
+
+function watchCacheChanges() {
+  if (state.cacheWatchStarted) return;
+  state.cacheWatchStarted = true;
+  cacheSync.onChange(markCacheStale);
 }
 
 function unreadOf(conversation) {
@@ -1284,8 +1302,19 @@ async function unlockCache() {
   const passphrase = el("cache-passphrase").value;
   state.cacheStore ??= createCacheStore();
   const envelope = await state.cacheStore.load();
-  const document = envelope ? await decryptCacheDocument(envelope, passphrase) : cacheDocument();
+  let document;
+  try {
+    document = envelope ? await decryptCacheDocument(envelope, passphrase) : cacheDocument();
+  } catch (error) {
+    throw new Error(
+      /at least 12 characters/.test(error?.message ?? "")
+        ? "passphrase ต้องยาวอย่างน้อย 12 ตัวอักษร"
+        : "ปลดล็อก cache ไม่สำเร็จ: passphrase ไม่ถูกต้องหรือไฟล์เสียหาย",
+    );
+  }
   state.cachePassphrase = passphrase;
+  state.cacheStale = false;
+  watchCacheChanges();
   state.conversations = Array.isArray(document.conversations) ? document.conversations : [];
   state.cachedEvents = document.events && typeof document.events === "object" ? document.events : {};
   state.deliveryIds = new Set(Array.isArray(document.deliveryIds) ? document.deliveryIds : []);
@@ -1301,11 +1330,13 @@ async function clearCache() {
   state.cacheStore ??= createCacheStore();
   await state.cacheStore.clear();
   state.cachePassphrase = "";
+  state.cacheStale = false;
   state.conversations = [];
   state.cachedEvents = {};
   state.deliveryIds.clear();
   state.audits = [];
   renderConversationList();
+  cacheSync.announce();
   el("cache-status").textContent = "ลบข้อมูล local แล้ว";
 }
 
@@ -1329,6 +1360,9 @@ async function importCache(file) {
   state.cacheStore ??= createCacheStore();
   await state.cacheStore.save(envelope);
   state.cachePassphrase = "";
+  state.cacheStale = false;
+  watchCacheChanges();
+  cacheSync.announce();
   el("cache-status").textContent = "นำเข้า ciphertext cache แล้ว; ปลดล็อกด้วย passphrase เพื่อใช้งาน";
 }
 

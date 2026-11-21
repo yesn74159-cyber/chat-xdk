@@ -1,6 +1,6 @@
 # แผนแอป X Chat: ข้อความ ลิงก์ และภาพเป็นอันดับแรก
 
-สถานะ: อัปเดต (2026-11-21) — ต้นแบบ local-only ที่ `apps/x-chat-web/` ผ่าน offline/mock/static gate ในเครื่อง; การส่งกับ X API จริงยังไม่ผ่านการตรวจ (`LIVE_PASS` ยังเปิด)
+สถานะ: อัปเดต (2026-11-21) — ต้นแบบ local-only ที่ `apps/x-chat-web/` ผ่าน offline/mock/static gate ในเครื่อง (109 offline + 20 mock), มีคู่มือผู้ใช้ภาษาไทย, a11y audit บางส่วน และ cross-tab cache guard; การส่งกับ X API จริงยังไม่ผ่านการตรวจ (`LIVE_PASS` ยังเปิด) — ข้อที่ติดบัญชี/สิทธิ์ดูหัวข้อ "สิ่งที่ยังติด (Blocked)"
 
 ## สถานะงานปัจจุบัน
 
@@ -15,7 +15,7 @@
 - [ ] เพิ่ม inbox persistence, pagination และ real-time events
 - [ ] เพิ่มกลุ่ม, team workflow และ automation ตามลำดับเฟส
 
-ลำดับดำเนินงานถัดไป: ปิด `STATIC_PASS` ด้วย route/body/error tests, lint/type checks และ security headers ก่อนเตรียม OAuth/live test.
+ลำดับดำเนินงานถัดไป: (1) push และยืนยัน CI จริง (2) เก็บงานเทคนิคที่ไม่ต้องใช้บัญชีในหัวข้อ Blocked ข้อ 3 (3) เตรียม OAuth/X Developer app และบัญชีทดสอบ A/B เพื่อเริ่ม `LIVE_PASS`.
 
 ## Master checklist — ตั้งแต่ต้นแบบจนจบโครงการ
 
@@ -40,8 +40,9 @@
 - [x] ระบุ data classification และ retention ของ plaintext, ciphertext, metadata,
   logs, backups และไฟล์ชั่วคราวสำหรับ local prototype; hosted/team ต้อง review ใหม่
 - [x] กำหนด incident path สำหรับ token รั่ว, key สูญหาย, signature ผิด และส่งผิดห้อง โดย fail-closed และเก็บหลักฐาน redacted
-- [ ] กำหนดว่าห้าม commit/log/paste: access token, refresh token, PIN, raw private key,
-  key blob, plaintext และ ciphertext เต็มก้อน
+- [x] กำหนดว่าห้าม commit/log/paste: access token, refresh token, PIN, raw private key,
+  key blob, plaintext และ ciphertext เต็มก้อน (DEVELOPER_ONBOARDING + README
+  Boundaries + secret guard ใน CI บังคับใช้จริง)
 - [x] เพิ่ม secret guard ใน CI สำหรับ PEM, literal `X_ACCESS_TOKEN` และ common GitHub/Slack token prefix; `.gitignore` กัน local X Chat `.env` แล้ว
 - [x] เขียน developer onboarding ที่ใช้ process environment แบบ interactive เท่านั้น; ไม่ใช้ `.env` หรือ `setx`
 - [ ] เลือก license, ownership และช่องทางรายงานช่องโหว่ก่อน public release
@@ -67,7 +68,7 @@
 - [x] ทดสอบ signature/key/media ผิดว่า SDK ไม่ decrypt/คืน plaintext; UI render เฉพาะ `verified === true`
 - [x] เก็บ fixtures แบบไม่มี secret และใช้ SDK จริง ไม่ mock crypto
 - [x] เพิ่ม `npm run test:mock` และ CI job สำหรับ offline/mock gate
-- [ ] ยืนยันผล CI หลัง commit/push ว่า offline/mock gate ผ่านบน runner ใหม่
+- [ ] ยืนยันผล CI หลัง commit/push ว่า offline/mock gate ผ่านบน runner ใหม่ (blocked: repo ยังไม่ push)
 
 ### P2 — ปิด STATIC_PASS และคุณภาพโค้ด
 
@@ -85,7 +86,10 @@
 - [x] เพิ่ม production dependency audit ใน CI; audit ปัจจุบันไม่พบ high vulnerabilities
 - [ ] ทำ code review ด้าน security/privacy และแก้ทุก finding ระดับ release blocker
 - [ ] ตรวจ accessibility: keyboard, focus, label, contrast, live status และ error announcement
-- [ ] ทดสอบ browser ที่จะรองรับและขนาดหน้าจอขั้นต่ำที่ประกาศ
+  (ทำแล้ว: label/modals/focus restore/live status/error announcement — ดู
+  `apps/x-chat-web/docs/ACCESSIBILITY_AUDIT.md`; ยังขาด contrast, screen reader, zoom)
+- [ ] ทดสอบ browser ที่จะรองรับและขนาดหน้าจอขั้นต่ำที่ประกาศ (ประกาศ baseline
+  Chrome/Edge ใน README แล้ว; ยังไม่มี browser matrix จริง)
 - [x] ทำให้ `STATIC_PASS` เป็น CI gate ที่บันทึกผลได้
 
 ### P3 — เตรียม X integration และ LIVE_PASS อย่างปลอดภัย
@@ -126,6 +130,9 @@
 - [ ] ทำ search/filter เฉพาะ scope ข้อมูลที่ถูกอนุญาต และกำหนด indexing/retention ของ plaintext
 - [ ] ทำ export/delete local data และทดสอบ restore โดยไม่ทำข้อมูลอื่นหาย
 - [ ] ทดสอบ restart, offline, corrupted cache, missing history page และ concurrent tabs
+  (ทำแล้ว: offline decrypt fallback, tampered/malformed cache envelope fail-closed
+  test, cross-tab `BroadcastChannel` guard + unit test; ยังขาด UI restart และ
+  missing-page scenario แบบ end-to-end)
 
 ### P5 — Real-time delivery และความน่าเชื่อถือ
 
@@ -179,6 +186,7 @@
 ### P9 — Release readiness และเปิดใช้
 
 - [ ] กำหนด supported platforms/browsers, system requirements และ compatibility matrix
+  (ประกาศ Node 20+ และ Chrome/Edge baseline แล้ว; ยังไม่มี compatibility matrix ที่รันจริง)
 - [ ] ทำ reproducible build, signed artifacts และ dependency/license/SBOM review
 - [ ] แยก dev/test/prod configuration และ secret stores; ไม่มี production secret ใน build artifact
 - [ ] ทำ environment setup, migration, backup/restore และ rollback runbook
@@ -202,6 +210,19 @@
 - [ ] จัดทำ final architecture, operations, security และ user documentation ที่ตรงกับระบบที่ deploy
 - [ ] โครงการถือว่า “สมบูรณ์” เมื่อ release scope ทุก phase ที่เลือกไว้ผ่าน, ไม่มี open release blocker,
   เจ้าของรับมอบงานแล้ว และมีแผนดูแล/incident/upgrade หลังเปิดใช้
+
+## สิ่งที่ยังติด (Blocked) — ต้องมีคน/บัญชี/การอนุมัติจากเจ้าของ
+
+1. **ต้องมีบัญชีและสิทธิ์จริง:** P3 ทั้งหมด, P6 LIVE, และการยืนยัน CI บน runner
+   (P1) — ต้อง push repo, มี X Developer app ที่ได้ scope, และบัญชีทดสอบ A/B
+   ที่ยินยอมทั้งสองฝ่าย
+2. **ต้องตัดสินใจระดับองค์กร:** เจ้าของ product/security (P0), use case ที่
+   อนุญาต, รูปแบบผลิตภัณฑ์หลัง MVP, license/ช่องทางรายงานช่องโหว่, เลือก
+   activity stream หรือ webhook (P5), โมเดลทีม (P7), นโยบาย automation (P8),
+   และ go/no-go (P9)
+3. **งานเทคนิคที่ยังเดินต่อได้โดยไม่มีบัญชี:** UI restart end-to-end, missing
+   history page, contrast/screen-reader, browser matrix, แยก adapter/state
+   machine (P2), ออกแบบ local persistence (P4), load/soak test กับ mock (P5)
 
 ## 1. เป้าหมายจากการสนทนา
 

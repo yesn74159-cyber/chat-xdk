@@ -20,3 +20,17 @@ test("encrypted cache round-trips ciphertext metadata but rejects sensitive fiel
     /Refusing to persist sensitive field/,
   );
 });
+
+test("tampered or malformed cache envelopes fail closed instead of yielding a document", async () => {
+  const passphrase = "correct horse battery staple";
+  const envelope = await encryptCacheDocument(cacheDocument({ conversations: [{ id: "g-mock-1" }] }), passphrase);
+
+  const bytes = Buffer.from(envelope.ciphertext, "base64");
+  bytes[0] ^= 0xff;
+  const tampered = { ...envelope, ciphertext: bytes.toString("base64") };
+  await assert.rejects(() => decryptCacheDocument(tampered, passphrase), /Unable to unlock/);
+
+  await assert.rejects(() => decryptCacheDocument({ ...envelope, version: 2 }, passphrase), /Unsupported/);
+  await assert.rejects(() => decryptCacheDocument({ ...envelope, salt: "" }, passphrase), /Invalid encrypted cache/);
+  await assert.rejects(() => decryptCacheDocument({ ...envelope, ciphertext: "%%%" }, passphrase), /Unable to unlock/);
+});
