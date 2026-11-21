@@ -11,7 +11,7 @@
 - [x] ทำ `STATIC_PASS` สำหรับ MVP local adapter: syntax, route/input validation, body limits และ local error mapping ที่มี test รองรับ
 - [x] (2026-11-21) ถอดบัญชีทดสอบออกจากซอร์ส: Live Create target มาจาก environment 4 ตัว และ test/preflight ใช้ค่าจำลอง
 - [x] (2026-11-21) ปิดช่องว่าง STATIC_PASS ที่ทำได้: Node 20+, CI matrix 20/22, retry ใช้ `message_id` เดิม, offline แสดงข้อความที่ verify แล้วจาก cache
-- [ ] ทำ `LIVE_PASS`: บัญชีทดสอบ A/B พร้อม OAuth scopes ที่อนุมัติ
+- [ ] ทำ `LIVE_PASS`: บัญชีทดสอบ A/B พร้อม OAuth scopes ที่อนุมัติ (เริ่มแล้ว 2026-11-21: text/URL/PNG ผ่านด้วย static token; เหลือ JPEG/multi-part, retry, negative cases, หลักฐานฝั่ง B และ cleanup)
 - [ ] เพิ่ม inbox persistence, pagination และ real-time events
 - [ ] เพิ่มกลุ่ม, team workflow และ automation ตามลำดับเฟส
 
@@ -115,23 +115,37 @@
 ### P3 — เตรียม X integration และ LIVE_PASS อย่างปลอดภัย
 
 - [x] ตรวจสัญญา X API/OpenAPI ที่ใช้อยู่: public-key/event fields ถูกระบุ explicit, `segment_index` เป็น integer 0–999, `num_parts` เป็น numeric string และ error ไม่เผย upstream body
-- [ ] สร้าง/ตรวจ X Developer app และอนุมัติการเข้าถึง X Chat ที่จำเป็น
+- [x] สร้าง/ตรวจ X Developer app และอนุมัติการเข้าถึง X Chat ที่จำเป็น (ยืนยันทางอ้อม 2026-11-21: static token ของแอปที่อนุมัติแล้วส่ง/รับ DM จริงผ่าน local app ได้)
 - [x] จัดทำ live preflight/checklist ที่ไม่บันทึก secret สำหรับ OAuth, test identities และ evidence
-- [ ] ยืนยัน OAuth user-context flow, redirect URI, token lifetime/refresh และ least-privilege scopes (`apps/x-chat-web/lib/oauth-client.mjs` ทำ PKCE S256 + single-use state + refresh และมี fake-IdP test แล้ว; เหลือยืนยันกับแอป X จริง)
-- [ ] ยืนยัน `dm.read`, `dm.write`, `tweet.read`, `users.read`, `media.write` และ scope เพิ่มเติมที่ operation จริงระบุ (`npm run preflight:live` ตรวจรายชื่อ scope ให้; รอ scope ที่อนุมัติจริง)
-- [ ] เก็บ token เฉพาะ local secret store/environment; ไม่ส่ง token ให้ browser JavaScript หรือ log (OAuth token อยู่ในหน่วยความจำ server เท่านั้น และ `/api/auth/status` คืนเฉพาะสถานะ; รอการยืนยัน end-to-end กับแอปจริง)
-- [ ] สร้างบัญชีทดสอบ A/B และ conversation ที่ทั้งสองฝ่ายยินยอมรับข้อความ
-- [ ] ตรวจ public signing keys, identity keys และ key version ของทั้งสองบัญชีก่อนส่ง
-- [ ] ทดสอบเริ่ม session: import/unlock, `setIdentity`, signing keys และ conversation keys
-- [ ] LIVE: A ส่งข้อความธรรมดาไป B; B โหลด history, verify และ decrypt สำเร็จ
-- [ ] LIVE: A ส่ง URL; B เห็น URL และเปิดได้ตามพฤติกรรม X client ที่ยืนยันแล้ว
-- [ ] LIVE: A ส่ง PNG; B ดาวน์โหลด ciphertext, decrypt ด้วย **key version ของ event** และได้ bytes ตรงต้นฉบับ
+- [ ] ยืนยัน OAuth user-context flow, redirect URI, token lifetime/refresh และ least-privilege scopes (`apps/x-chat-web/lib/oauth-client.mjs` ทำ PKCE S256 + single-use state + refresh และมี fake-IdP test แล้ว; เหลือยืนยันกับแอป X จริง; รอบ 2026-11-21 ใช้ static token ไม่ได้ทดสอบ OAuth กับแอปจริง)
+- [ ] ยืนยัน `dm.read`, `dm.write`, `tweet.read`, `users.read`, `media.write` และ scope เพิ่มเติมที่ operation จริงระบุ (`npm run preflight:live` ตรวจรายชื่อ scope ให้; ใช้งานจริงแล้วผ่านรอบ 2026-11-21: dm.read/dm.write/users.read/media.write — `tweet.read` ยังไม่มีการเรียกที่ยืนยัน)
+- [x] เก็บ token เฉพาะ local secret store/environment; ไม่ส่ง token ให้ browser JavaScript หรือ log (OAuth token อยู่ในหน่วยความจำ server เท่านั้น และ `/api/auth/status` คืนเฉพาะสถานะ; รอบ static-token ใช้ `npm run start:live` ป้อนแบบซ่อนตัวอักษร และ `/api/status` คืนเฉพาะ `tokenConfigured`)
+- [x] สร้างบัญชีทดสอบ A/B และ conversation ที่ทั้งสองฝ่ายยินยอมรับข้อความ (2026-11-21: บัญชี A/B มีห้อง 1:1 เดิมที่ทั้งคู่ยินยอม และเปิดผ่าน local app ได้)
+- [x] ตรวจ public signing keys, identity keys และ key version ของทั้งสองบัญชีก่อนส่ง (2026-11-21: live lookup ยืนยัน identity/key ของทั้งสองฝั่งก่อนเปิดห้องเดิม)
+- [x] ทดสอบเริ่ม session: import/unlock, `setIdentity`, signing keys และ conversation keys (2026-11-21: ตรวจสอบบัญชี X + Passcode สำเร็จ; chip แสดง "X API เชื่อมต่อแล้ว" และ badge เปิดใช้งาน)
+- [x] LIVE: A ส่งข้อความธรรมดาไป B; B โหลด history, verify และ decrypt สำเร็จ (2026-11-21: ข้อความ "hi" ไป-กลับ แสดง "ตรวจลายเซ็นแล้ว" ทั้งสองฝั่ง)
+- [x] LIVE: A ส่ง URL; B เห็น URL และเปิดได้ตามพฤติกรรม X client ที่ยืนยันแล้ว (2026-11-21: `https://example.com/` แสดงเป็นลิงก์ verified)
+- [x] LIVE: A ส่ง PNG; B ดาวน์โหลด ciphertext, decrypt ด้วย **key version ของ event** และได้ bytes ตรงต้นฉบับ (2026-11-21: เจ้าของบัญชี B ยืนยัน bytes ตรงกับต้นฉบับ)
 - [ ] LIVE: ทำซ้ำกับ JPEG และหลาย upload parts ภายใต้ขนาดที่ X อนุญาต
-- [ ] LIVE: B ตอบกลับ A และทั้งสองฝั่ง verify/decrypt ได้
-- [ ] LIVE: ตรวจ response timeout/5xx แล้ว resend payload เดิมโดยไม่สร้างข้อความซ้ำ
+- [ ] LIVE: B ตอบกลับ A และทั้งสองฝั่ง verify/decrypt ได้ (ฝั่ง A verify ผ่านแล้ว; การ verify ฝั่ง B ยังไม่ได้บันทึกหลักฐาน)
+- [ ] LIVE: ตรวจ response timeout/5xx แล้ว resend payload เดิมโดยไม่สร้างข้อความซ้ำ (n/a จนกว่าจะเกิด response กำกวมจริง)
 - [ ] LIVE: ทดสอบ signing key หาย, signature ผิด, KeyChange ผิด และ media hash ผิดว่า fail-closed
-- [ ] บันทึกหลักฐาน LIVE_PASS ที่ redacted: เวลา, test account aliases, conversation/event IDs, key version, outcome
+- [x] บันทึกหลักฐาน LIVE_PASS ที่ redacted: เวลา, test account aliases, conversation/event IDs, key version, outcome (ดูตารางหลักฐานด้านล่าง)
 - [ ] ปิด/ถอน test token และลบ ciphertext/plaintext test data ตาม retention เมื่อเสร็จ
+
+#### หลักฐาน LIVE_PASS (redacted, 2026-11-21)
+
+เวลาเป็น UTC; alias คือ A = บัญชีเจ้าของเครื่อง local, B = คู่สนทนา; ไม่มี token, handle เต็ม, key blob หรือ plaintext ในไฟล์นี้
+
+| เวลา (UTC) | เคส | ทิศทาง | ID ที่อ้างอิง | Key version | X HTTP | ผล verify | Media bytes |
+| ---------- | --- | ------ | ------------- | ----------- | ------ | ---------- | ----------- |
+| 2026-11-21T11:34Z | text | A→B | sender ID ท้าย `…2912` (event ID ไม่ได้บันทึก) | not captured | ok (ข้อความขึ้นทั้งสองฝั่ง) | verified ทั้งฝั่ง A และ B | n-a |
+| 2026-11-21T11:34Z | url | A→B | ไม่ได้บันทึก | not captured | ok | verified | n-a |
+| 2026-11-21T11:34Z | png | A→B | ไม่ได้บันทึก | not captured | ok | verified | equal (เจ้าของบัญชี B ยืนยัน) |
+| 2026-11-21T11:34Z | reply text | B→A | sender ID ท้าย `…2912` | not captured | ok | verified ฝั่ง A | n-a |
+
+หมายเหตุ: conversation ID และ key version ไม่แสดงใน UI รอบนี้ จึงไม่บันทึก;
+retry และ negative cases ยังไม่ทดสอบ; cleanup ยังไม่ทำ (token ยังใช้งาน)
 
 ### P4 — Inbox ที่ใช้งานต่อเนื่องได้
 
