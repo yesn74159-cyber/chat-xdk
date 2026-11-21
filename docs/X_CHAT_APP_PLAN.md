@@ -11,7 +11,7 @@
 - [x] ทำ `STATIC_PASS` สำหรับ MVP local adapter: syntax, route/input validation, body limits และ local error mapping ที่มี test รองรับ
 - [x] (2026-11-21) ถอดบัญชีทดสอบออกจากซอร์ส: Live Create target มาจาก environment 4 ตัว และ test/preflight ใช้ค่าจำลอง
 - [x] (2026-11-21) ปิดช่องว่าง STATIC_PASS ที่ทำได้: Node 20+, CI matrix 20/22, retry ใช้ `message_id` เดิม, offline แสดงข้อความที่ verify แล้วจาก cache
-- [ ] ทำ `LIVE_PASS`: บัญชีทดสอบ A/B พร้อม OAuth scopes ที่อนุมัติ (เริ่มแล้ว 2026-11-21: text/URL ผ่าน, media สองทางผ่านด้วย OAuth ที่มี `media.write`, multi-part 4.12 MiB ส่งสำเร็จและรอ B ยืนยัน, negative cases ฝั่ง SDK และ media hash ผิดบน conversation จริงผ่าน; เหลือ B-side verify และ cleanup)
+- [ ] ทำ `LIVE_PASS`: บัญชีทดสอบ A/B พร้อม OAuth scopes ที่อนุมัติ (2026-11-21: text/URL ผ่าน, media สองทางผ่านด้วย OAuth ที่มี `media.write`, multi-part 4.12 MiB ส่งและ B เห็นภาพตรง, B-side verify ผ่าน, negative cases ฝั่ง SDK และ media hash ผิดบน conversation จริงผ่าน; เหลือ cleanup/revoke token)
 - [ ] เพิ่ม inbox persistence, pagination และ real-time events
 - [ ] เพิ่มกลุ่ม, team workflow และ automation ตามลำดับเฟส
 
@@ -126,8 +126,8 @@
 - [x] LIVE: A ส่งข้อความธรรมดาไป B; B โหลด history, verify และ decrypt สำเร็จ (2026-11-21: ข้อความ "hi" ไป-กลับ แสดง "ตรวจลายเซ็นแล้ว" ทั้งสองฝั่ง)
 - [x] LIVE: A ส่ง URL; B เห็น URL และเปิดได้ตามพฤติกรรม X client ที่ยืนยันแล้ว (2026-11-21: `https://example.com/` แสดงเป็นลิงก์ verified)
 - [x] LIVE: A ส่ง PNG; B ดาวน์โหลด ciphertext, decrypt ด้วย **key version ของ event** และได้ bytes ตรงต้นฉบับ (2026-11-21: เจ้าของบัญชี B ยืนยัน bytes ตรงกับต้นฉบับ)
-- [ ] LIVE: ทำซ้ำกับ JPEG และหลาย upload parts ภายใต้ขนาดที่ X อนุญาต (2026-11-21T13:56Z: ส่ง JPEG 4.12 MiB จากแอป A→B สำเร็จ ต้องใช้ 2 parts เพราะเพดาน 3 MiB/part และประวัติมี event ใหม่; รอ B ยืนยันภาพ)
-- [ ] LIVE: B ตอบกลับ A และทั้งสองฝั่ง verify/decrypt ได้ (ฝั่ง A verify ผ่านแล้ว; การ verify ฝั่ง B ยังไม่ได้บันทึกหลักฐาน — 2026-11-21T12:39Z มี event ตอบกลับจาก B และฝั่ง A ถอดได้)
+- [x] LIVE: ทำซ้ำกับ JPEG และหลาย upload parts ภายใต้ขนาดที่ X อนุญาต (2026-11-21T13:56Z: ส่ง JPEG 4.12 MiB จากแอป A→B สำเร็จ ต้องใช้ 2 parts เพราะเพดาน 3 MiB/part, ประวัติมี event ใหม่ และ B เห็นภาพตรงกับไฟล์)
+- [x] LIVE: B ตอบกลับ A และทั้งสองฝั่ง verify/decrypt ได้ (2026-11-21T13:59Z: B ตอบกลับ "Goog good" ด้วยแอป X หลังเห็นภาพ multi-part; ฝั่ง A ถอดและแสดงข้อความ B ได้; ฝั่ง B เห็นภาพที่ A ส่ง)
 - [ ] LIVE: ตรวจ response timeout/5xx แล้ว resend payload เดิมโดยไม่สร้างข้อความซ้ำ (n/a จนกว่าจะเกิด response กำกวมจริง — 2026-11-21 ไม่พบ timeout/5xx ระหว่างทดสอบ; reconciliation หลัง timeout ครอบใน mock suite แล้ว)
 - [ ] ทดสอบ signing key หาย, signature ผิด, KeyChange ผิด และ media hash ผิดว่า fail-closed (2026-11-21: SDK/WASM จริง fail-closed ครบ — ciphertext ถูกแก้กลางทาง, signing key ไม่มี, KeyChange ถูกแก้ และ conversation key ไม่มี ล้วนถูกปฏิเสธ; live media hash ผิดบน conversation จริงตอบ 404; ค้าง: signature/KeyChange ผิดบน event live จริง)
 - [x] บันทึกหลักฐาน LIVE_PASS ที่ redacted: เวลา, test account aliases, conversation/event IDs, key version, outcome (ดูตารางหลักฐานด้านล่าง)
@@ -151,11 +151,12 @@
 | 2026-11-21T12:42Z | jpg upload (แอป local)                | A→B   | ไม่ได้บันทึก                                       | not captured  | ok                   | verified: ส่งจากแอป local, ฝั่ง B เห็นภาพในแอป X               | ภาพตรงกับไฟล์ที่ส่ง           |
 | 2026-11-21T12:57Z | media hash ผิด                         | A อ่าน | conversation เดิม A/B                           | n-a           | 404                  | fail-closed: ไม่ดาวน์โหลด/ไม่แสดง                             | n-a                      |
 | 2026-11-21T12:57Z | tamper ciphertext/signature/KeyChange | local | fixture ของ SDK                                | 1             | n-a                  | fail-closed: signature verification failed / ปฏิเสธทั้ง batch | n-a                      |
-| 2026-11-21T13:56Z | jpg 4.12 MiB (multi-part, 2 parts)    | A→B   | sender ท้าย `…4850`; conversation `…4850-…2912` | 1795202204266 | ok (สถานะ "ส่งแล้ว")   | ประวัติมี event ใหม่ 1 รายการ; รอ B ยืนยันภาพ                    | รอ B ยืนยัน                |
+| 2026-11-21T13:56Z | jpg 4.12 MiB (multi-part, 2 parts)    | A→B   | sender ท้าย `…4850`; conversation `…4850-…2912` | 1795202204266 | ok (สถานะ "ส่งแล้ว")   | ส่งสำเร็จ; B เห็นภาพในแอป X และตอบกลับ                         | ภาพตรงกับไฟล์ (B ยืนยัน)     |
+| 2026-11-21T13:59Z | reply text (B→A)                      | B→A   | sender ท้าย `…2912`; conversation `…4850-…2912` | 1795202204266 | ok                   | verified ฝั่ง A (แสดงข้อความ B); B ถอดภาพของ A ได้             | n-a                      |
 
 หมายเหตุ: conversation ID และ key version ไม่แสดงใน UI รอบนี้ จึงไม่บันทึก;
-B-side verify รอบ multi-part ยังรอผล; retry ยังไม่ทดสอบ (ไม่เกิด response กำกวม);
-cleanup ยังไม่ทำ (token ยังใช้งาน). เซิร์ฟเวอร์ถูกรีสตาร์ทราว 13:47Z ทำให้ token
+B-side verify และ multi-part ผ่านแล้ว (B เห็นภาพและตอบกลับ); retry ยังไม่ทดสอบ
+(ไม่เกิด response กำกวม); cleanup ยังไม่ทำ (token ยังใช้งาน). เซิร์ฟเวอร์ถูกรีสตาร์ทราว 13:47Z ทำให้ token
 เดิมหายจาก memory และ login ใหม่ (หมดอายุ 15:51Z, ไม่มี refresh token) — ยืนยันว่า
 token ไม่ถูกเก็บถาวรตาม runbook
 
