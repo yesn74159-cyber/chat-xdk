@@ -190,3 +190,49 @@ test("attachment decryption rejects non PNG/JPEG bytes before finishing the stre
     /ไฟล์ชนิดนี้ยังไม่รองรับ/,
   );
 });
+
+test("tampered ciphertext and missing key material fail closed", async () => {
+  const chat = await createChat();
+  chat.importKeys({
+    keys: base64ToBytes(vectors.private_keys_concat_b64),
+    signingKeyVersion: vectors.event_recipient_key_version,
+  });
+  chat.setIdentity({ userId: vectors.event_sender_id, signingKeyVersion: vectors.event_signing_key_version });
+  chat.setCacheKeys(true);
+  const signingKeys = [
+    {
+      userId: vectors.event_sender_id,
+      publicKeyVersion: vectors.event_signing_key_version,
+      publicKey: vectors.signing_public_b64,
+      identityPublicKey: vectors.identity_public_b64,
+      identityPublicKeySignature: vectors.identity_public_key_signature_b64,
+    },
+  ];
+  const batch = chat.decryptEvents({ events: [vectors.event_key_change_b64, vectors.event_message_b64] });
+  const conversationKeys = batch.conversationKeys.keys;
+
+  const tampered = base64ToBytes(vectors.event_message_b64);
+  const middle = Math.floor(tampered.length / 2);
+  tampered[middle] ^= 0xff;
+  assert.throws(
+    () =>
+      chat.decryptEvent({
+        eventB64: Buffer.from(tampered).toString("base64"),
+        conversationKeys,
+        signingKeys,
+      }),
+    /Signature verification failed/,
+  );
+  assert.throws(
+    () => chat.decryptEvent({ eventB64: vectors.event_message_b64, conversationKeys, signingKeys: [] }),
+    /signature/i,
+  );
+  const keyChangeTampered = base64ToBytes(vectors.event_key_change_b64);
+  keyChangeTampered[Math.floor(keyChangeTampered.length / 2)] ^= 0xff;
+  const rejected = chat.decryptEvents({
+    events: [Buffer.from(keyChangeTampered).toString("base64"), vectors.event_message_b64],
+  });
+  assert.equal(rejected.events.length, 0);
+  assert.deepEqual(rejected.conversationKeys.keys, {});
+  assert.deepEqual(Object.keys(rejected.errors).sort(), ["0", "1"]);
+});

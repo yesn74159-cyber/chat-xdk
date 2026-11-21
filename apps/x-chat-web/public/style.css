@@ -250,6 +250,11 @@ summary:focus-visible {
   white-space: nowrap;
 }
 
+#auth-reconnect {
+  color: inherit;
+  text-decoration: underline;
+}
+
 .icon-button {
   display: inline-grid;
   width: 38px;

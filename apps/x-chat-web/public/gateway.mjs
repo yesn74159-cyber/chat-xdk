@@ -1,13 +1,17 @@
 function errorFromResponse(response, body) {
-  /** @type {Error & { retryable?: boolean; status?: number }} */
+  /** @type {Error & { retryable?: boolean; status?: number; authRequired?: boolean }} */
   const error = new Error(body.error || `HTTP ${response.status}`);
   error.retryable = body.retryable === true;
   error.status = response.status;
   return error;
 }
 
+const AUTH_REQUIRED_MESSAGE = "เซสชัน X หมดอายุหรือไม่ได้รับอนุญาต — เชื่อมต่อบัญชีใหม่";
+
 /** Browser-facing gateway: UI code never needs to know whether the server is Mock or Live. */
 export function createGateway(fetchImpl = fetch) {
+  /** @type {(error: Error) => void} */
+  let notifyAuthRequired = () => {};
   async function request(path, options) {
     let response;
     try {
@@ -19,7 +23,15 @@ export function createGateway(fetchImpl = fetch) {
       throw error;
     }
     const body = await response.json().catch(() => ({}));
-    if (!response.ok) throw errorFromResponse(response, body);
+    if (!response.ok) {
+      const error = errorFromResponse(response, body);
+      if (response.status === 401) {
+        error.authRequired = true;
+        error.message = AUTH_REQUIRED_MESSAGE;
+        notifyAuthRequired(error);
+      }
+      throw error;
+    }
     return body;
   }
   const post = (path, data) =>
@@ -31,6 +43,9 @@ export function createGateway(fetchImpl = fetch) {
   return {
     request,
     post,
+    onAuthRequired: (handler) => {
+      notifyAuthRequired = typeof handler === "function" ? handler : () => {};
+    },
     status: () => request("/api/status"),
     me: () => request("/api/me"),
     juiceboxConfig: () => request("/api/juicebox/config"),

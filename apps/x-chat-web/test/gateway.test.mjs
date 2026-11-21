@@ -32,3 +32,21 @@ test("gateway provides one UI contract and retains retryability without upstream
     /** @param {any} error */ (error) => error.message === "not found" && error.status === 404,
   );
 });
+
+test("an expired or missing X session asks the UI to reconnect", async () => {
+  let notified = 0;
+  const gateway = createGateway(
+    async () => new Response(JSON.stringify({ error: "X API returned HTTP 401" }), { status: 401 }),
+  );
+  gateway.onAuthRequired(() => {
+    notified += 1;
+  });
+  await assert.rejects(
+    () => gateway.conversations(),
+    /** @param {any} error */ (error) =>
+      error.status === 401 &&
+      error.authRequired === true &&
+      error.message === "เซสชัน X หมดอายุหรือไม่ได้รับอนุญาต — เชื่อมต่อบัญชีใหม่",
+  );
+  assert.equal(notified, 1);
+});

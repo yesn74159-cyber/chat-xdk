@@ -338,6 +338,10 @@ const state = {
 const FILE_READ_BYTES = 256 * 1024;
 const UPLOAD_PART_BYTES = 3 * 1024 * 1024;
 const gateway = createGateway();
+gateway.onAuthRequired(() => {
+  el("auth-reconnect").hidden = false;
+  el("connection-status").textContent = "X API: ต้องเชื่อมต่อบัญชีใหม่";
+});
 const contactLookupEpoch = createLookupEpoch();
 
 function activity(message) {
@@ -2418,6 +2422,7 @@ try {
         ? "Local server พร้อม · รอยืนยันบัญชี X"
         : "Local server พร้อม · รอ X token";
   el("load-keys").disabled = false;
+  el("auth-reconnect").hidden = !(status.auth?.configured === true && status.auth.authenticated !== true);
   el("prepare-juicebox").disabled = status.mode !== "live" || !status.tokenConfigured;
   el("create-mock-identity").disabled = status.mode !== "mock";
   el("sync-mock").hidden = status.mode !== "mock";

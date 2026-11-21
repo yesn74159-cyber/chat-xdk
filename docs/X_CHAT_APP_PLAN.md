@@ -1,6 +1,6 @@
 # แผนแอป X Chat: ข้อความ ลิงก์ และภาพเป็นอันดับแรก
 
-สถานะ: อัปเดต (2026-11-21) — ต้นแบบ local-only ที่ `apps/x-chat-web/` ผ่าน offline/mock/static gate ในเครื่อง (109 offline + 20 mock), มีคู่มือผู้ใช้ภาษาไทย, a11y audit บางส่วน และ cross-tab cache guard; การส่งกับ X API จริงยังไม่ผ่านการตรวจ (`LIVE_PASS` ยังเปิด) — ข้อที่ติดบัญชี/สิทธิ์ดูหัวข้อ "สิ่งที่ยังติด (Blocked)"
+สถานะ: อัปเดต (2026-11-21) — ต้นแบบ local-only ที่ `apps/x-chat-web/` ผ่าน offline/mock/static gate ในเครื่อง (141 offline + 21 mock), มีคู่มือผู้ใช้ภาษาไทย, a11y audit บางส่วน และ cross-tab cache guard; LIVE_PASS ผ่านข้อความ/URL/ภาพสองทางแล้ว (OAuth + `media.write`) และ negative cases ฝั่ง SDK/มีเดียผ่าน แต่ยังเปิดเพราะเหลือ multi-part, retry, B-side verify และ cleanup — ข้อที่ติดบัญชี/สิทธิ์ดูหัวข้อ "สิ่งที่ยังติด (Blocked)"
 
 ## สถานะงานปัจจุบัน
 
@@ -11,7 +11,7 @@
 - [x] ทำ `STATIC_PASS` สำหรับ MVP local adapter: syntax, route/input validation, body limits และ local error mapping ที่มี test รองรับ
 - [x] (2026-11-21) ถอดบัญชีทดสอบออกจากซอร์ส: Live Create target มาจาก environment 4 ตัว และ test/preflight ใช้ค่าจำลอง
 - [x] (2026-11-21) ปิดช่องว่าง STATIC_PASS ที่ทำได้: Node 20+, CI matrix 20/22, retry ใช้ `message_id` เดิม, offline แสดงข้อความที่ verify แล้วจาก cache
-- [ ] ทำ `LIVE_PASS`: บัญชีทดสอบ A/B พร้อม OAuth scopes ที่อนุมัติ (เริ่มแล้ว 2026-11-21: text/URL ผ่าน, media สองทางผ่านด้วย OAuth ที่มี `media.write` — upload จากแอปและดาวน์โหลด JPEG; เหลือ multi-part, retry, negative cases และ cleanup)
+- [ ] ทำ `LIVE_PASS`: บัญชีทดสอบ A/B พร้อม OAuth scopes ที่อนุมัติ (เริ่มแล้ว 2026-11-21: text/URL ผ่าน, media สองทางผ่านด้วย OAuth ที่มี `media.write` — upload จากแอปและดาวน์โหลด JPEG; negative cases ฝั่ง SDK (tamper ciphertext/signature/KeyChange) และ media hash ผิดบน conversation จริงผ่านแล้ว; เหลือ B-side verify, multi-part, retry และ cleanup)
 - [ ] เพิ่ม inbox persistence, pagination และ real-time events
 - [ ] เพิ่มกลุ่ม, team workflow และ automation ตามลำดับเฟส
 
@@ -117,7 +117,7 @@
 - [x] ตรวจสัญญา X API/OpenAPI ที่ใช้อยู่: public-key/event fields ถูกระบุ explicit, `segment_index` เป็น integer 0–999, `num_parts` เป็น numeric string และ error ไม่เผย upstream body
 - [x] สร้าง/ตรวจ X Developer app และอนุมัติการเข้าถึง X Chat ที่จำเป็น (ยืนยันทางอ้อม 2026-11-21: static token ของแอปที่อนุมัติแล้วส่ง/รับ DM จริงผ่าน local app ได้)
 - [x] จัดทำ live preflight/checklist ที่ไม่บันทึก secret สำหรับ OAuth, test identities และ evidence
-- [ ] ยืนยัน OAuth user-context flow, redirect URI, token lifetime/refresh และ least-privilege scopes (`apps/x-chat-web/lib/oauth-client.mjs` ทำ PKCE S256 + single-use state + refresh และมี fake-IdP test แล้ว; เหลือยืนยันกับแอป X จริง; รอบ 2026-11-21 ใช้ static token ไม่ได้ทดสอบ OAuth กับแอปจริง)
+- [ ] ยืนยัน OAuth user-context flow, redirect URI, token lifetime/refresh และ least-privilege scopes (`apps/x-chat-web/lib/oauth-client.mjs` ทำ PKCE S256 + single-use state + refresh และมี fake-IdP test แล้ว; กับแอป X จริง 2026-11-21 ผ่านแล้ว: login PKCE, redirect loopback, scopes dm.read/dm.write/users.read/media.write/tweet.read; ค้างเฉพาะ token lifetime/refresh — รอบนี้ไม่ได้ขอ `offline.access` จึงไม่มี refresh token)
 - [ ] ยืนยัน `dm.read`, `dm.write`, `tweet.read`, `users.read`, `media.write` และ scope เพิ่มเติมที่ operation จริงระบุ (`npm run preflight:live` ตรวจรายชื่อ scope ให้; ใช้งานจริงแล้วผ่านรอบ 2026-11-21: dm.read/dm.write/users.read/media.write — `tweet.read` ยังไม่มีการเรียกที่ยืนยัน)
 - [x] เก็บ token เฉพาะ local secret store/environment; ไม่ส่ง token ให้ browser JavaScript หรือ log (OAuth token อยู่ในหน่วยความจำ server เท่านั้น และ `/api/auth/status` คืนเฉพาะสถานะ; รอบ static-token ใช้ `npm run start:live` ป้อนแบบซ่อนตัวอักษร และ `/api/status` คืนเฉพาะ `tokenConfigured`)
 - [x] สร้างบัญชีทดสอบ A/B และ conversation ที่ทั้งสองฝ่ายยินยอมรับข้อความ (2026-11-21: บัญชี A/B มีห้อง 1:1 เดิมที่ทั้งคู่ยินยอม และเปิดผ่าน local app ได้)
@@ -129,7 +129,7 @@
 - [ ] LIVE: ทำซ้ำกับ JPEG และหลาย upload parts ภายใต้ขนาดที่ X อนุญาต
 - [ ] LIVE: B ตอบกลับ A และทั้งสองฝั่ง verify/decrypt ได้ (ฝั่ง A verify ผ่านแล้ว; การ verify ฝั่ง B ยังไม่ได้บันทึกหลักฐาน)
 - [ ] LIVE: ตรวจ response timeout/5xx แล้ว resend payload เดิมโดยไม่สร้างข้อความซ้ำ (n/a จนกว่าจะเกิด response กำกวมจริง)
-- [ ] LIVE: ทดสอบ signing key หาย, signature ผิด, KeyChange ผิด และ media hash ผิดว่า fail-closed
+- [ ] ทดสอบ signing key หาย, signature ผิด, KeyChange ผิด และ media hash ผิดว่า fail-closed (2026-11-21: SDK/WASM จริง fail-closed ครบ — ciphertext ถูกแก้กลางทาง, signing key ไม่มี, KeyChange ถูกแก้ และ conversation key ไม่มี ล้วนถูกปฏิเสธ; live media hash ผิดบน conversation จริงตอบ 404; ค้าง: signature/KeyChange ผิดบน event live จริง)
 - [x] บันทึกหลักฐาน LIVE_PASS ที่ redacted: เวลา, test account aliases, conversation/event IDs, key version, outcome (ดูตารางหลักฐานด้านล่าง)
 - [ ] ปิด/ถอน test token และลบ ciphertext/plaintext test data ตาม retention เมื่อเสร็จ
 
@@ -149,9 +149,11 @@
 | 2026-11-21T12:30Z | xlsx (FastClaw_Admin.xlsx) | B→A   | sender ID ท้าย `…2912`                     | not captured | ok                   | fail-closed: ชนิดไฟล์ยังไม่รองรับ                  | ไม่แสดง (ตามดีไซน์)         |
 | 2026-11-21T12:30Z | zip (PG.zip)               | B→A   | sender ID ท้าย `…2912`                     | not captured | 413                  | ไม่ดาวน์โหลด: เกินเพดาน 16 MB ของแอป             | n-a                      |
 | 2026-11-21T12:42Z | jpg upload (แอป local)     | A→B   | ไม่ได้บันทึก                                  | not captured | ok                   | verified: ส่งจากแอป local, ฝั่ง B เห็นภาพในแอป X  | ภาพตรงกับไฟล์ที่ส่ง           |
+| 2026-11-21T12:57Z | media hash ผิด             | A อ่าน | conversation เดิม A/B                     | n-a          | 404                  | fail-closed: ไม่ดาวน์โหลด/ไม่แสดง                | n-a                      |
+| 2026-11-21T12:57Z | tamper ciphertext/signature/KeyChange | local | fixture ของ SDK                 | 1            | n-a                  | fail-closed: signature verification failed / ปฏิเสธทั้ง batch | n-a                      |
 
 หมายเหตุ: conversation ID และ key version ไม่แสดงใน UI รอบนี้ จึงไม่บันทึก;
-multi-part upload, retry และ negative cases ยังไม่ทดสอบ; cleanup ยังไม่ทำ (token ยังใช้งาน)
+B-side verify, multi-part upload และ retry ยังไม่ทดสอบ; cleanup ยังไม่ทำ (token ยังใช้งาน)
 
 2026-11-21T12:10Z (diagnostic): token ที่ใช้อยู่ตอบ `403 / type about:blank / Forbidden`
 ทั้ง `POST /2/chat/media/upload/initialize` (ทดสอบผ่าน loopback ด้วย 1 byte) และ
