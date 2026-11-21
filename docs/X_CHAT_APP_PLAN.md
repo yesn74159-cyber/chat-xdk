@@ -134,13 +134,25 @@
 
 ### P4 — Inbox ที่ใช้งานต่อเนื่องได้
 
-- [ ] ออกแบบ local persistence โดยเก็บ metadata เท่าที่จำเป็นและกำหนด opt-in ของ plaintext cache
-- [ ] เข้ารหัส at-rest ของข้อมูลที่ต้องเก็บ และกำหนด key/backup/restore model โดยไม่เก็บ raw private key แบบไม่ป้องกัน
+- [x] ออกแบบ local persistence โดยเก็บ metadata เท่าที่จำเป็นและกำหนด opt-in ของ plaintext cache
+      (ทำแล้ว: persistence มีเฉพาะ optional encrypted IndexedDB envelope
+      `x-chat-local-cache-v1` ที่เก็บ signed ciphertext, media metadata,
+      conversation/unread/delivery ID และ draft audit แบบ redacted; ไม่มี
+      plaintext cache ให้ opt-in โดยเจตนา — ระบุใน `DATA_HANDLING.md`)
+- [x] เข้ารหัส at-rest ของข้อมูลที่ต้องเก็บ และกำหนด key/backup/restore model โดยไม่เก็บ raw private key แบบไม่ป้องกัน
+      (ทำแล้ว: AES-GCM + PBKDF2 310k จาก passphrase ใน memory, envelope มีแค่
+      `version/salt/iv/ciphertext`, ตรวจ key ที่ต้องห้ามก่อนบันทึก; export/import
+      โอนเฉพาะ envelope และ import ไม่ปลดล็อก; delete ต้องยืนยัน; raw private
+      key/PIN/token ไม่ถูกเขียนลง cache — unit + browser smoke ครอบ)
 - [x] ทำรายการ conversation, unread state และการเปิด conversation ที่มีสิทธิ์
       (browser smoke สร้างกลุ่ม Mock แล้วเห็นรายการ/ตัวกรองและ search ทำงาน;
       mock test ยืนยัน unread state; `conversation-list` unit tests ปฏิเสธ
       record ที่ตรวจผู้เข้าร่วมไม่ได้ก่อนเปิด)
-- [ ] ทำ history pagination จนสุด โดยประมวล KeyChange metadata ก่อน event ที่พึ่งพากุญแจนั้น
+- [x] ทำ history pagination จนสุด โดยประมวล KeyChange metadata ก่อน event ที่พึ่งพากุญแจนั้น
+      (ทำแล้ว: `refresh()` ส่ง `pagination_token` จาก `next_token`, กัน cursor ซ้ำ,
+      รวม `conversationKeyEvents` ไว้หน้า event ใน `decryptEvents` ชุดเดียวกัน,
+      ปุ่ม load-more ปิดเมื่อหมดหน้า และ mock history test ยืนยันหน้าสุดท้าย
+      คืน `data: []` ไม่มี `next_token`)
 - [x] เพิ่ม cursor pagination ของ event history ด้วย `next_token` → `pagination_token` พร้อม mock adapter test
 - [ ] ทำ dedup ด้วย signed `message_id`; แยก event-delivery id สำหรับ dedup ของ stream/webhook
 - [x] ทำ in-memory dedup/retry ของข้อความด้วย signed message ID; event-delivery dedup รอ real-time phase
@@ -149,7 +161,11 @@
 - [x] ทำ upload encryption แบบจำกัด memory: อ่าน Blob ครั้งละ 256 KiB, ใช้ `fileEncryptor`, และ append ciphertext ครั้งละไม่เกิน 3 MiB
 - [x] ทำดาวน์โหลด/ถอดไฟล์แบบ streaming: adapter forward bounded ciphertext stream และ browser ใช้ `fileDecryptor` ทีละ chunk ก่อนสร้าง preview Blob
 - [x] แสดง preview เฉพาะหลัง decrypt และยอมเฉพาะ PNG/JPEG ที่ตรวจ magic bytes; URL render เป็น text node/HTTP(S) link พร้อม `noopener noreferrer`
-- [ ] ทำ search/filter เฉพาะ scope ข้อมูลที่ถูกอนุญาต และกำหนด indexing/retention ของ plaintext
+- [x] ทำ search/filter เฉพาะ scope ข้อมูลที่ถูกอนุญาต และกำหนด indexing/retention ของ plaintext
+      (ทำแล้ว: search/filter ทำงานบน conversation metadata ที่ตรวจสิทธิ์แล้ว
+      (ชื่อ/username/kind/unread) ตามข้อมูลที่โหลดมา; ไม่มี plaintext index
+      หรือ plaintext retention เพราะไม่เก็บ plaintext เลย — ระบุใน
+      `DATA_HANDLING.md`; browser smoke ยืนยัน filter/search)
 - [x] ทำ export/delete local data และทดสอบ restore โดยไม่ทำข้อมูลอื่นหาย
       (browser smoke: export ไฟล์จริง, import ไฟล์เสียต้องไม่แตะ cache เดิม,
       clear พร้อม confirm แล้ว record หายจริง, import ไฟล์เดิมกลับและปลดล็อก
@@ -257,8 +273,17 @@
       rollback ด้วย git revert + ข้อจำกัด envelope เวอร์ชันใหม่, และ gate
       verification; เหตุ credential/key ยังอ้าง `INCIDENT_RESPONSE.md`)
 - [ ] ทำ monitoring, alert, error triage และ incident/on-call ownership โดย redaction เป็นค่าเริ่มต้น
+      (ทำแล้วเฉพาะฝั่งแอป: `/api/health`, `/api/metrics` (counts/status buckets/
+      server errors/RSS-heap) ที่ redact แล้ว, `INCIDENT_RESPONSE.md` และ
+      `OPERATIONS.md` error-triage ขั้นต้น; alerting, log store และ on-call
+      ownership ต้องมี infra และเจ้าของ — ยังไม่ทำ)
 - [ ] ทำ privacy notice, terms/acceptable-use, data deletion path และ support process ตามรูปแบบ deployment
+      (ทำแล้ว: deletion path ในแอป + `DATA_HANDLING.md`; privacy notice/ToS/
+      acceptable-use และ support process ขึ้นกับ deployment model ที่ยังไม่เลือก
+      (local vs hosted) — เป็น owner/legal decision)
 - [ ] ทำ penetration/security review, accessibility review และ performance/reliability test ตาม risk
+      (ทำแล้ว: security/privacy review (`SECURITY_REVIEW.md`), accessibility audit + automated contrast/name/focus/reflow checks, และ load/soak + browser
+      matrix; penetration testing ยังไม่ทำและต้องมีขอบเขต/ผู้อนุมัติก่อน)
 - [ ] ทำ release candidate UAT: P1–P8 ที่อยู่ในขอบเขตต้องผ่าน พร้อม evidence และ known limitations ที่อนุมัติ
 - [x] ตั้ง versioning/changelog/release notes และ upgrade/downgrade compatibility plan
       (ทำแล้ว: `apps/x-chat-web/CHANGELOG.md` เริ่มที่ 0.1.0 (2026-11-21) พร้อม
