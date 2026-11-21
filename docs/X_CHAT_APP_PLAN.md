@@ -11,7 +11,7 @@
 - [x] ทำ `STATIC_PASS` สำหรับ MVP local adapter: syntax, route/input validation, body limits และ local error mapping ที่มี test รองรับ
 - [x] (2026-11-21) ถอดบัญชีทดสอบออกจากซอร์ส: Live Create target มาจาก environment 4 ตัว และ test/preflight ใช้ค่าจำลอง
 - [x] (2026-11-21) ปิดช่องว่าง STATIC_PASS ที่ทำได้: Node 20+, CI matrix 20/22, retry ใช้ `message_id` เดิม, offline แสดงข้อความที่ verify แล้วจาก cache
-- [ ] ทำ `LIVE_PASS`: บัญชีทดสอบ A/B พร้อม OAuth scopes ที่อนุมัติ (2026-11-21: text/URL ผ่าน, media สองทางผ่านด้วย OAuth ที่มี `media.write`, multi-part 4.12 MiB ส่งและ B เห็นภาพตรง, B-side verify ผ่าน, negative cases ฝั่ง SDK และ media hash ผิดบน conversation จริงผ่าน; เหลือ cleanup/revoke token)
+- [ ] ทำ `LIVE_PASS`: บัญชีทดสอบ A/B พร้อม OAuth scopes ที่อนุมัติ (2026-11-21: text/URL ผ่าน, media สองทางผ่านด้วย OAuth ที่มี `media.write`, multi-part 4.12 MiB ส่งและ B เห็นภาพตรง, B-side verify ผ่าน, negative cases ฝั่ง SDK และ media hash ผิดบน conversation จริงผ่าน, เซิร์ฟเวอร์หยุดและลบไฟล์ทดสอบแล้ว; เหลือ revoke token ใน X settings โดยเจ้าของบัญชี)
 - [ ] เพิ่ม inbox persistence, pagination และ real-time events
 - [ ] เพิ่มกลุ่ม, team workflow และ automation ตามลำดับเฟส
 
@@ -156,7 +156,9 @@
 
 หมายเหตุ: conversation ID และ key version ไม่แสดงใน UI รอบนี้ จึงไม่บันทึก;
 B-side verify และ multi-part ผ่านแล้ว (B เห็นภาพและตอบกลับ); retry ยังไม่ทดสอบ
-(ไม่เกิด response กำกวม); cleanup ยังไม่ทำ (token ยังใช้งาน). เซิร์ฟเวอร์ถูกรีสตาร์ทราว 13:47Z ทำให้ token
+(ไม่เกิด response กำกวม); cleanup 2026-11-21T14:02Z: หยุดเซิร์ฟเวอร์ local แล้ว
+(token หายจาก memory) และลบไฟล์ทดสอบ multi-part แล้ว — เหลือ revoke การเข้าถึงแอป
+ใน X settings ซึ่งเจ้าของบัญชีต้องกดเอง. เซิร์ฟเวอร์ถูกรีสตาร์ทราว 13:47Z ทำให้ token
 เดิมหายจาก memory และ login ใหม่ (หมดอายุ 15:51Z, ไม่มี refresh token) — ยืนยันว่า
 token ไม่ถูกเก็บถาวรตาม runbook
 
