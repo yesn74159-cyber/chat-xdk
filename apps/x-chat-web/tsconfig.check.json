@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "strict": false,
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["node"],
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "/pin-unlock.mjs": ["public/pin-unlock.mjs"],
+      "/event-state.mjs": ["public/event-state.mjs"],
+      "/gateway.mjs": ["public/gateway.mjs"],
+      "/cache-vault.mjs": ["public/cache-vault.mjs"],
+      "/draft-queue.mjs": ["public/draft-queue.mjs"],
+      "/group-members.mjs": ["public/group-members.mjs"],
+      "/links.mjs": ["public/links.mjs"],
+      "/media.mjs": ["public/media.mjs"],
+      "/reconcile.mjs": ["public/reconcile.mjs"],
+      "/send-progress.mjs": ["public/send-progress.mjs"]
+    }
+  },
+  "include": ["server.mjs", "lib/**/*.mjs", "public/**/*.mjs", "test/**/*.mjs"]
+}

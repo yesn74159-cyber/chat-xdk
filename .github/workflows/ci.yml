@@ -7,6 +7,56 @@ on:
     branches: ["**"]
 
 jobs:
+  x-chat-web:
+    name: x-chat web mock gate (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [20, 22]
+
+    defaults:
+      run:
+        working-directory: chat-xdk/apps/x-chat-web
+
+    steps:
+      - name: Checkout chat-xdk
+        uses: actions/checkout@v4
+        with:
+          path: chat-xdk
+
+      - name: Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+          cache-dependency-path: chat-xdk/apps/x-chat-web/package-lock.json
+
+      - name: Install app dependencies
+        run: npm ci
+
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Guard against committed credentials
+        run: npm run scan:secrets
+
+      - name: Check app JavaScript
+        run: npm run check
+
+      - name: Test offline and mock flows
+        run: npm test
+
+      - name: Create production dependency SBOM
+        run: npm sbom --sbom-format cyclonedx --omit=dev > x-chat-web-sbom.cdx.json
+
+      - name: Upload X Chat web SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: x-chat-web-sbom-node-${{ matrix.node }}
+          path: chat-xdk/apps/x-chat-web/x-chat-web-sbom.cdx.json
+          if-no-files-found: error
+
   test:
     name: test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}

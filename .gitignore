@@ -2,7 +2,18 @@
 .idea/
 examples/config.yaml
 
+# Local-only X Chat credentials. The app reads X_ACCESS_TOKEN from the process
+# environment; these files are never a supported credential path.
+apps/x-chat-web/.env
+apps/x-chat-web/.env.*
+!apps/x-chat-web/.env.example
+docs/.env
+
 crates/wasm/js/node_modules/
+# App dependencies; the UI is built into node_modules/.cache at start time
+apps/x-chat-web/node_modules/
+# Local pre-edit snapshots kept outside version control
+backups/
 # Staged by `make wasm` from crates/wasm/pkg (build artifact, ships in the npm tarball)
 crates/wasm/js/pkg/
 crates/pyo3/python/chat_xdk/*.dSYM
