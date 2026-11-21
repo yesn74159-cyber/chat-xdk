@@ -97,9 +97,9 @@
 - [x] ทดสอบ browser ที่จะรองรับและขนาดหน้าจอขั้นต่ำที่ประกาศ
       (`npm run test:browser` ขับ Chrome 158 และ Edge 155 แบบ headless ที่
       1280×900 และ 375×812: โหลด, ตัวกรอง unread, settings, cache unlock,
-      reload แล้ว cache ยังอยู่, offline shell, ไม่มี horizontal overflow และ
-      ไม่มี console/page error — 6 scenario ผ่านทั้งสองเบราว์เซอร์;
-      Firefox/Safari ยังไม่รองรับ)
+      reload แล้ว cache ยังอยู่, backup export/clear/restore, รายการกลุ่ม Mock,
+      offline shell, ไม่มี horizontal overflow และไม่มี console/page error —
+      8 scenario ผ่านทั้งสองเบราว์เซอร์; Firefox/Safari ยังไม่รองรับ)
 - [x] ทำให้ `STATIC_PASS` เป็น CI gate ที่บันทึกผลได้
 
 ### P3 — เตรียม X integration และ LIVE_PASS อย่างปลอดภัย
@@ -127,7 +127,10 @@
 
 - [ ] ออกแบบ local persistence โดยเก็บ metadata เท่าที่จำเป็นและกำหนด opt-in ของ plaintext cache
 - [ ] เข้ารหัส at-rest ของข้อมูลที่ต้องเก็บ และกำหนด key/backup/restore model โดยไม่เก็บ raw private key แบบไม่ป้องกัน
-- [ ] ทำรายการ conversation, unread state และการเปิด conversation ที่มีสิทธิ์
+- [x] ทำรายการ conversation, unread state และการเปิด conversation ที่มีสิทธิ์
+      (browser smoke สร้างกลุ่ม Mock แล้วเห็นรายการ/ตัวกรองและ search ทำงาน;
+      mock test ยืนยัน unread state; `conversation-list` unit tests ปฏิเสธ
+      record ที่ตรวจผู้เข้าร่วมไม่ได้ก่อนเปิด)
 - [ ] ทำ history pagination จนสุด โดยประมวล KeyChange metadata ก่อน event ที่พึ่งพากุญแจนั้น
 - [x] เพิ่ม cursor pagination ของ event history ด้วย `next_token` → `pagination_token` พร้อม mock adapter test
 - [ ] ทำ dedup ด้วย signed `message_id`; แยก event-delivery id สำหรับ dedup ของ stream/webhook
@@ -138,10 +141,10 @@
 - [x] ทำดาวน์โหลด/ถอดไฟล์แบบ streaming: adapter forward bounded ciphertext stream และ browser ใช้ `fileDecryptor` ทีละ chunk ก่อนสร้าง preview Blob
 - [x] แสดง preview เฉพาะหลัง decrypt และยอมเฉพาะ PNG/JPEG ที่ตรวจ magic bytes; URL render เป็น text node/HTTP(S) link พร้อม `noopener noreferrer`
 - [ ] ทำ search/filter เฉพาะ scope ข้อมูลที่ถูกอนุญาต และกำหนด indexing/retention ของ plaintext
-- [ ] ทำ export/delete local data และทดสอบ restore โดยไม่ทำข้อมูลอื่นหาย
-      (ทำแล้ว: import ตรวจ envelope ก่อนเขียนทับ ทิ้งไฟล์เสียโดยไม่แตะ cache
-      เดิม + round-trip test และ browser smoke ยืนยันว่า reload แล้ว cache
-      เดิมยังปลดล็อกได้; ยังขาด UI test ของ clear/delete)
+- [x] ทำ export/delete local data และทดสอบ restore โดยไม่ทำข้อมูลอื่นหาย
+      (browser smoke: export ไฟล์จริง, import ไฟล์เสียต้องไม่แตะ cache เดิม,
+      clear พร้อม confirm แล้ว record หายจริง, import ไฟล์เดิมกลับและปลดล็อก
+      ด้วย passphrase เดิมได้; `cache-vault` test ครอบ round-trip)
 - [x] ทดสอบ restart, offline, corrupted cache, missing history page และ concurrent tabs
       (restart/offline: `npm run test:browser` reload แล้วปลดล็อก cache เดิมได้
       และ offline แล้ว shell ยังใช้งานได้; corrupted cache: tampered/malformed

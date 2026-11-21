@@ -3,7 +3,9 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
 import { existsSync } from "node:fs";
-import { resolve } from "node:path";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const appRoot = fileURLToPath(new URL("..", import.meta.url));
@@ -157,6 +159,15 @@ async function waitForStoredEnvelope(page, timeout = 10000) {
   throw new Error("encrypted cache record was not persisted");
 }
 
+async function waitForMissingEnvelope(page, timeout = 10000) {
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline) {
+    if (!(await readStoredEnvelope(page))) return;
+    await new Promise((resolveWait) => setTimeout(resolveWait, 100));
+  }
+  throw new Error("encrypted cache record was not deleted");
+}
+
 const server = startServer();
 const scenarios = [];
 const failures = [];
@@ -209,6 +220,87 @@ try {
     await openCacheSection(page);
     await unlockCache(page, "ปลดล็อก cache แล้ว");
     await page.click("#settings-close");
+  });
+
+  await scenario("desktop export, clear and restore round trip", async () => {
+    await openCacheSection(page);
+    const [download] = await Promise.all([page.waitForEvent("download"), page.click("#export-cache")]);
+    const exported = JSON.parse(await readFile(await download.path(), "utf8"));
+    assert.deepEqual(Object.keys(exported).sort(), ["ciphertext", "iv", "salt", "version"]);
+    assert.deepEqual(await waitForStoredEnvelope(page), exported);
+
+    const scratch = await mkdtemp(join(tmpdir(), "x-chat-smoke-"));
+    try {
+      const rejected = join(scratch, "rejected.json");
+      await writeFile(rejected, JSON.stringify({ version: 1, salt: "", iv: "aXY=", ciphertext: "Y3Q=" }));
+      await page.setInputFiles("#import-cache", rejected);
+      await page.waitForFunction(
+        () => document.querySelector("#activity")?.textContent?.includes("ไม่ใช่รูปแบบที่รองรับ"),
+        null,
+        { timeout: 10000 },
+      );
+      assert.deepEqual(await readStoredEnvelope(page), exported);
+
+      page.once("dialog", (dialog) => dialog.accept());
+      await page.click("#clear-cache");
+      await page.waitForFunction(
+        () => document.querySelector("#cache-status")?.textContent === "ลบข้อมูล local แล้ว",
+        null,
+        { timeout: 10000 },
+      );
+      await waitForMissingEnvelope(page);
+
+      const restored = join(scratch, "cache.json");
+      await writeFile(restored, JSON.stringify(exported));
+      await page.setInputFiles("#import-cache", restored);
+      await page.waitForFunction(
+        () => document.querySelector("#cache-status")?.textContent?.includes("นำเข้า ciphertext cache แล้ว"),
+        null,
+        { timeout: 10000 },
+      );
+      assert.deepEqual(await waitForStoredEnvelope(page), exported);
+      await unlockCache(page, "ปลดล็อก cache แล้ว");
+      await page.click("#settings-close");
+    } finally {
+      await rm(scratch, { recursive: true, force: true });
+    }
+  });
+
+  await scenario("desktop conversation list renders and filters the created group", async () => {
+    await page.click("#settings-toggle");
+    await page.waitForSelector("#settings-panel[open]", { timeout: 10000 });
+    const diagnostics = page.locator("details", { has: page.locator("#create-mock-identity") });
+    await diagnostics.evaluate((node) => {
+      node.open = true;
+    });
+    await page.click("#create-mock-identity");
+    await page.waitForFunction(
+      () => document.querySelector("#activity")?.textContent?.includes("ตัวตน Mock พร้อมแล้ว"),
+      null,
+      { timeout: 30000 },
+    );
+    const groupSection = page.locator("details", { has: page.locator("#create-group") });
+    await groupSection.evaluate((node) => {
+      node.open = true;
+    });
+    await page.click("#create-group");
+    await page.waitForFunction(
+      () => document.querySelector("#activity")?.textContent?.includes("สร้างกลุ่มแล้ว"),
+      null,
+      { timeout: 30000 },
+    );
+    const groupItem = page.locator('#conversation-list .conversation-item[data-kind="group"]');
+    await groupItem.first().waitFor({ state: "visible", timeout: 20000 });
+    assert.equal(await groupItem.first().locator(".conversation-name").textContent(), "กลุ่ม");
+    await page.click("#settings-close");
+    await page.click('button[data-filter="unread"]');
+    await page.waitForSelector("#conversation-list .list-empty", { timeout: 10000 });
+    await page.click('button[data-filter="all"]');
+    await groupItem.first().waitFor({ state: "visible", timeout: 10000 });
+    await page.fill("#conversation-search", "ไม่มีบทสนทนานี้");
+    await page.waitForSelector("#conversation-list .list-empty", { timeout: 10000 });
+    await page.fill("#conversation-search", "");
+    await groupItem.first().waitFor({ state: "visible", timeout: 10000 });
   });
 
   await scenario("desktop offline keeps the shell usable", async () => {

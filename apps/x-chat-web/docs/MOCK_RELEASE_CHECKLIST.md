@@ -14,7 +14,7 @@ substitutes for a live X API result.
 - [x] Mock text, URL and PNG/JPEG ciphertext round trips.
 - [x] Mock group creation, three-member roster change, key rotation and stale-roster rejection.
 - [x] Mock pagination, duplicate/out-of-order delivery simulation, offline/reconnect and unread read-state.
-- [x] Encrypted IndexedDB envelope rejects plaintext/private-key/token/passphrase/PIN fields.
+- [x] Encrypted IndexedDB envelope rejects plaintext/private-key/token/passphrase/PIN fields; export, clear and restore round-trip in a real browser without losing the imported envelope.
 - [x] Draft is manually approved; no auto-send, background delivery or broadcast route exists.
 
 ## Deliberately not yet release proof
