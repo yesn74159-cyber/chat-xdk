@@ -128,7 +128,7 @@
 - [x] LIVE: A ส่ง PNG; B ดาวน์โหลด ciphertext, decrypt ด้วย **key version ของ event** และได้ bytes ตรงต้นฉบับ (2026-11-21: เจ้าของบัญชี B ยืนยัน bytes ตรงกับต้นฉบับ)
 - [ ] LIVE: ทำซ้ำกับ JPEG และหลาย upload parts ภายใต้ขนาดที่ X อนุญาต
 - [ ] LIVE: B ตอบกลับ A และทั้งสองฝั่ง verify/decrypt ได้ (ฝั่ง A verify ผ่านแล้ว; การ verify ฝั่ง B ยังไม่ได้บันทึกหลักฐาน)
-- [ ] LIVE: ตรวจ response timeout/5xx แล้ว resend payload เดิมโดยไม่สร้างข้อความซ้ำ (n/a จนกว่าจะเกิด response กำกวมจริง)
+- [ ] LIVE: ตรวจ response timeout/5xx แล้ว resend payload เดิมโดยไม่สร้างข้อความซ้ำ (n/a จนกว่าจะเกิด response กำกวมจริง — 2026-11-21 ไม่พบ timeout/5xx ระหว่างทดสอบ; reconciliation หลัง timeout ครอบใน mock suite แล้ว)
 - [ ] ทดสอบ signing key หาย, signature ผิด, KeyChange ผิด และ media hash ผิดว่า fail-closed (2026-11-21: SDK/WASM จริง fail-closed ครบ — ciphertext ถูกแก้กลางทาง, signing key ไม่มี, KeyChange ถูกแก้ และ conversation key ไม่มี ล้วนถูกปฏิเสธ; live media hash ผิดบน conversation จริงตอบ 404; ค้าง: signature/KeyChange ผิดบน event live จริง)
 - [x] บันทึกหลักฐาน LIVE_PASS ที่ redacted: เวลา, test account aliases, conversation/event IDs, key version, outcome (ดูตารางหลักฐานด้านล่าง)
 - [ ] ปิด/ถอน test token และลบ ciphertext/plaintext test data ตาม retention เมื่อเสร็จ
@@ -137,20 +137,20 @@
 
 เวลาเป็น UTC; alias คือ A = บัญชีเจ้าของเครื่อง local, B = คู่สนทนา; ไม่มี token, handle เต็ม, key blob หรือ plaintext ในไฟล์นี้
 
-| เวลา (UTC)        | เคส                        | ทิศทาง | ID ที่อ้างอิง                                 | Key version  | X HTTP               | ผล verify                                     | Media bytes              |
-| ----------------- | -------------------------- | ----- | ----------------------------------------- | ------------ | -------------------- | --------------------------------------------- | ------------------------ |
-| 2026-11-21T11:34Z | text                       | A→B   | sender ID ท้าย `…2912` (event ID ไม่ได้บันทึก) | not captured | ok (ข้อความขึ้นทั้งสองฝั่ง) | verified ทั้งฝั่ง A และ B                         | n-a                      |
-| 2026-11-21T11:34Z | url                        | A→B   | ไม่ได้บันทึก                                  | not captured | ok                   | verified                                      | n-a                      |
-| 2026-11-21T11:34Z | png                        | A→B   | ไม่ได้บันทึก                                  | not captured | ok                   | verified                                      | equal (เจ้าของบัญชี B ยืนยัน) |
-| 2026-11-21T11:34Z | reply text                 | B→A   | sender ID ท้าย `…2912`                     | not captured | ok                   | verified ฝั่ง A                                 | n-a                      |
-| 2026-11-21T12:30Z | jpg (PG146.jpg)            | B→A   | sender ID ท้าย `…2912`                     | not captured | ok                   | verified: ถอดและแสดงภาพจริงในแอป               | ภาพตรงกับไฟล์ที่ส่ง           |
-| 2026-11-21T12:30Z | jpg (images.jpg)           | B→A   | sender ID ท้าย `…2912`                     | not captured | ok                   | verified: ถอดและแสดงภาพจริงในแอป               | ภาพตรงกับไฟล์ที่ส่ง           |
-| 2026-11-21T12:30Z | gif (giphy.gif)            | B→A   | sender ID ท้าย `…2912`                     | not captured | ok                   | fail-closed: ชนิดไฟล์ยังไม่รองรับ (PNG/JPEG เท่านั้น) | ไม่แสดง (ตามดีไซน์)         |
-| 2026-11-21T12:30Z | xlsx (FastClaw_Admin.xlsx) | B→A   | sender ID ท้าย `…2912`                     | not captured | ok                   | fail-closed: ชนิดไฟล์ยังไม่รองรับ                  | ไม่แสดง (ตามดีไซน์)         |
-| 2026-11-21T12:30Z | zip (PG.zip)               | B→A   | sender ID ท้าย `…2912`                     | not captured | 413                  | ไม่ดาวน์โหลด: เกินเพดาน 16 MB ของแอป             | n-a                      |
-| 2026-11-21T12:42Z | jpg upload (แอป local)     | A→B   | ไม่ได้บันทึก                                  | not captured | ok                   | verified: ส่งจากแอป local, ฝั่ง B เห็นภาพในแอป X  | ภาพตรงกับไฟล์ที่ส่ง           |
-| 2026-11-21T12:57Z | media hash ผิด             | A อ่าน | conversation เดิม A/B                     | n-a          | 404                  | fail-closed: ไม่ดาวน์โหลด/ไม่แสดง                | n-a                      |
-| 2026-11-21T12:57Z | tamper ciphertext/signature/KeyChange | local | fixture ของ SDK                 | 1            | n-a                  | fail-closed: signature verification failed / ปฏิเสธทั้ง batch | n-a                      |
+| เวลา (UTC)        | เคส                                   | ทิศทาง | ID ที่อ้างอิง                                 | Key version  | X HTTP               | ผล verify                                                  | Media bytes              |
+| ----------------- | ------------------------------------- | ----- | ----------------------------------------- | ------------ | -------------------- | ---------------------------------------------------------- | ------------------------ |
+| 2026-11-21T11:34Z | text                                  | A→B   | sender ID ท้าย `…2912` (event ID ไม่ได้บันทึก) | not captured | ok (ข้อความขึ้นทั้งสองฝั่ง) | verified ทั้งฝั่ง A และ B                                      | n-a                      |
+| 2026-11-21T11:34Z | url                                   | A→B   | ไม่ได้บันทึก                                  | not captured | ok                   | verified                                                   | n-a                      |
+| 2026-11-21T11:34Z | png                                   | A→B   | ไม่ได้บันทึก                                  | not captured | ok                   | verified                                                   | equal (เจ้าของบัญชี B ยืนยัน) |
+| 2026-11-21T11:34Z | reply text                            | B→A   | sender ID ท้าย `…2912`                     | not captured | ok                   | verified ฝั่ง A                                              | n-a                      |
+| 2026-11-21T12:30Z | jpg (PG146.jpg)                       | B→A   | sender ID ท้าย `…2912`                     | not captured | ok                   | verified: ถอดและแสดงภาพจริงในแอป                            | ภาพตรงกับไฟล์ที่ส่ง           |
+| 2026-11-21T12:30Z | jpg (images.jpg)                      | B→A   | sender ID ท้าย `…2912`                     | not captured | ok                   | verified: ถอดและแสดงภาพจริงในแอป                            | ภาพตรงกับไฟล์ที่ส่ง           |
+| 2026-11-21T12:30Z | gif (giphy.gif)                       | B→A   | sender ID ท้าย `…2912`                     | not captured | ok                   | fail-closed: ชนิดไฟล์ยังไม่รองรับ (PNG/JPEG เท่านั้น)              | ไม่แสดง (ตามดีไซน์)         |
+| 2026-11-21T12:30Z | xlsx (FastClaw_Admin.xlsx)            | B→A   | sender ID ท้าย `…2912`                     | not captured | ok                   | fail-closed: ชนิดไฟล์ยังไม่รองรับ                               | ไม่แสดง (ตามดีไซน์)         |
+| 2026-11-21T12:30Z | zip (PG.zip)                          | B→A   | sender ID ท้าย `…2912`                     | not captured | 413                  | ไม่ดาวน์โหลด: เกินเพดาน 16 MB ของแอป                          | n-a                      |
+| 2026-11-21T12:42Z | jpg upload (แอป local)                | A→B   | ไม่ได้บันทึก                                  | not captured | ok                   | verified: ส่งจากแอป local, ฝั่ง B เห็นภาพในแอป X               | ภาพตรงกับไฟล์ที่ส่ง           |
+| 2026-11-21T12:57Z | media hash ผิด                         | A อ่าน | conversation เดิม A/B                      | n-a          | 404                  | fail-closed: ไม่ดาวน์โหลด/ไม่แสดง                             | n-a                      |
+| 2026-11-21T12:57Z | tamper ciphertext/signature/KeyChange | local | fixture ของ SDK                           | 1            | n-a                  | fail-closed: signature verification failed / ปฏิเสธทั้ง batch | n-a                      |
 
 หมายเหตุ: conversation ID และ key version ไม่แสดงใน UI รอบนี้ จึงไม่บันทึก;
 B-side verify, multi-part upload และ retry ยังไม่ทดสอบ; cleanup ยังไม่ทำ (token ยังใช้งาน)
@@ -164,6 +164,11 @@ B-side verify, multi-part upload และ retry ยังไม่ทดสอ�
 PKCE) ซึ่งขอ scope `media.write` ได้แม้ตัว Generate token ใน portal ไม่มีตัวเลือกนี้ —
 หลัง login สำเร็จ ดาวน์โหลด/ถอด media ฝั่งรับ (JPEG) ทำงาน; 12:42Z ส่งรูปจากแอป local
 ไป B สำเร็จ (ฝั่ง B เห็นภาพในแอป X) ยืนยัน upload ใช้ `media.write` ได้เช่นกัน
+
+2026-11-21T13:01Z (session): OAuth ที่รันอยู่หมดอายุ 14:36:45Z และไม่มี refresh
+token (ไม่ได้ขอ `offline.access`) — แอปจึงเพิ่มปุ่ม "เชื่อมต่อบัญชี X ใหม่" ใน header
+เมื่อเจอ 401 เพื่อให้กลับเข้าใช้งานได้โดยไม่ต้องเดา error; cleanup ตาม
+`apps/x-chat-web/docs/LIVE_PASS_RUNBOOK.md` Part F
 
 ### P4 — Inbox ที่ใช้งานต่อเนื่องได้
 
