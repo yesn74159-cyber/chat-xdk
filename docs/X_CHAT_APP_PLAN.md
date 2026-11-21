@@ -168,7 +168,15 @@
       (ทำแล้ว: `/api/health` + `/api/metrics` นับ request/status bucket/server
       error โดยไม่เผย path หรือ PII + mock test; alerting ต้องมี infra
       จึงยังไม่ทำ)
-- [ ] ทำ load/soak test กับ mock เพื่อวัด memory, queue/backpressure และ rate-limit behavior
+- [x] ทำ load/soak test กับ mock เพื่อวัด memory, queue/backpressure และ rate-limit behavior
+      (ทำแล้ว: `npm run soak:mock` spawn mock server แล้วยิง 8s × 8 workers
+      = ~100k requests; วัด p50/p95 latency, status histogram, `/api/metrics`
+      `serverErrors` และ heap Δ จาก snapshot สองรอบหลัง settle; ตรวจ bounded
+      Mock delivery queue (burst 12), offline read คืน 503 + retryable แล้วกู้
+      กลับได้, และ malformed body คืน 400; rate-limit 429 ไม่ได้จำลองใน mock
+      แต่มี unit test ฝั่ง adapter/client ครอบอยู่แล้ว; ผลล่าสุด p95 < 1 ms,
+      heap +2 MiB, ไม่มี unexpected 5xx; ไม่มี rate limiter ของ server เอง —
+      ต้องเพิ่มก่อนเปิดใช้นอก loopback)
 - [ ] UAT: ส่งและรับใน real-time, restart/reconnect และ history reconciliation ผ่านเกณฑ์
 
 ### P6 — กลุ่มเฉพาะสมาชิก

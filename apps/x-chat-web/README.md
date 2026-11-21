@@ -43,6 +43,14 @@ installed-browser smoke (Chrome/Edge, desktop + 375px); it uses
 `playwright-core` with the system browser and skips when none is found. Set
 `X_CHAT_BROWSER_PATH` to pick a specific browser executable.
 
+Run `npm run soak:mock` for a short loopback load/soak probe. It starts the mock
+server, runs concurrent read traffic (default 8s × 8 workers), records latency,
+`/api/metrics` request/server-error counts and heap snapshots, checks the
+bounded Mock delivery queue, and verifies the offline path returns 503 with
+`retryable`. Tune with `SOAK_SECONDS`, `SOAK_CONCURRENCY`, `SOAK_MAX_P95_MS` and
+`SOAK_MAX_HEAP_GROWTH_MIB`; exit code is nonzero on unexpected 5xx, unbounded
+heap growth, or a latency miss.
+
 For adapter testing without X credentials or network calls, run `npm run start:mock`
 (equivalent to `X_CHAT_API_MODE=mock npm start`, but shell-independent). Mock
 mode keeps all state in memory, accepts the same local routes, and returns

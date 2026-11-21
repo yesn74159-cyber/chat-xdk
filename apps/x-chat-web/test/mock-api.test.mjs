@@ -495,11 +495,16 @@ test("health and metrics are redacted and count requests without paths", async (
   assert.equal(Number.isInteger(health.uptimeSeconds), true);
 
   const { body: metrics } = await request("/api/metrics");
-  assert.deepEqual(Object.keys(metrics).sort(), ["requests", "responses", "serverErrors", "uptimeSeconds"]);
+  assert.deepEqual(Object.keys(metrics).sort(), ["memory", "requests", "responses", "serverErrors", "uptimeSeconds"]);
   assert.equal(Number.isInteger(metrics.requests), true);
   assert.ok(metrics.requests >= 2);
   assert.ok(metrics.responses["2xx"] >= 1);
   assert.equal(metrics.serverErrors, 0);
+  assert.deepEqual(Object.keys(metrics.memory).sort(), ["heapUsedMiB", "rssMiB"]);
+  assert.equal(Number.isInteger(metrics.memory.rssMiB), true);
+  assert.equal(Number.isInteger(metrics.memory.heapUsedMiB), true);
+  assert.ok(metrics.memory.rssMiB > 0);
+  assert.ok(metrics.memory.heapUsedMiB > 0);
   assert.doesNotMatch(JSON.stringify(metrics), /conversation|token|user|api/i);
 });
 

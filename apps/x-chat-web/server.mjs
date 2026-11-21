@@ -288,11 +288,13 @@ async function api(req, res, url) {
     });
   }
   if (path === "/api/metrics" && req.method === "GET") {
+    const memory = process.memoryUsage();
     return json(res, 200, {
       uptimeSeconds: Math.floor((Date.now() - startedAt) / 1000),
       requests: metrics.requests,
       responses: Object.fromEntries([...metrics.responses].sort()),
       serverErrors: metrics.serverErrors,
+      memory: { rssMiB: Math.round(memory.rss / 1048576), heapUsedMiB: Math.round(memory.heapUsed / 1048576) },
     });
   }
   if (

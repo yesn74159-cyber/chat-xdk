@@ -9,6 +9,8 @@ substitutes for a live X API result.
 - [x] `npm test`: real WASM offline crypto/media checks and loopback Mock tests.
 - [x] `npm run test:browser`: installed-browser smoke (skips cleanly when no
       Chrome/Edge is present; set `X_CHAT_BROWSER_PATH` to choose one).
+- [x] `npm run soak:mock`: short loopback load/soak probe (latency, heap,
+      request counters, bounded delivery queue, offline 503/retryable).
 - [x] Credential marker scan and production dependency audit in CI.
 - [x] CycloneDX SBOM artifact generated in CI.
 - [x] Mock text, URL and PNG/JPEG ciphertext round trips.
