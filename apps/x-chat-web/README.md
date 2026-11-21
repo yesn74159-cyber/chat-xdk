@@ -23,7 +23,9 @@ and the single list of what the prototype does not do is
    upload additionally needs `media.write`. Confirm the exact scopes against
    the operations enabled for the X Developer app, and follow
    [docs/LIVE_PASS_RUNBOOK.md](docs/LIVE_PASS_RUNBOOK.md). Do not place a token
-   in a file or paste it into chat.
+   in a file or paste it into chat. If you would rather enter the token after
+   starting, run `npm run start:live`: it prompts with echo disabled and passes
+   the token only to the server process.
 3. Run `npm start` and open `http://127.0.0.1:8787` on the same computer. The server binds only to `127.0.0.1`.
    Live Create stays disabled until the operator sets
    `X_CHAT_LIVE_OWNER_USER_ID`, `X_CHAT_LIVE_OWNER_USERNAME`,

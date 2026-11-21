@@ -72,6 +72,12 @@ server process and never sends it to browser JavaScript.
 The token lives only in server memory: restarting the server requires a new
 sign-in. Mock mode returns `404` for the login and callback routes.
 
+Static-token alternative: `npm run start:live` builds the app and, when no
+credential is configured, asks for the access token with terminal echo
+disabled. The value goes straight into the server process environment; it is
+not written to disk, logs, or shell history. Pressing Enter without a token
+exits with a message instead of starting an unauthenticated server.
+
 ## Part C — readiness check
 
 ```powershell

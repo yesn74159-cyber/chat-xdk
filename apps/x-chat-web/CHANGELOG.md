@@ -31,6 +31,8 @@ Local, single-account Mock-first prototype. It is not a hosted product and
   JavaScript; static `X_ACCESS_TOKEN` remains as a fallback.
 - `npm run preflight:live` readiness check that prints statuses only, plus the
   `LIVE_PASS` runbook and redacted evidence template.
+- `npm run start:live` launcher that can prompt for a static token with echo
+  disabled, keeping it in the server process only.
 - Quality gates: offline + Mock tests, installed-browser smoke on Chrome/Edge
   at desktop and 375px, loopback soak probe, credential scan, dependency
   audit, CycloneDX SBOM in CI.

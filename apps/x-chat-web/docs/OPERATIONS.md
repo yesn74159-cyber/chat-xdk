@@ -38,6 +38,11 @@ There is no development-only build flag. `vite build` runs the same way in
 every environment, and `tools` such as the Mock identity button are gated by
 `X_CHAT_API_MODE=mock` at runtime, not by a build variant.
 
+`npm run start:live` builds the app and, when neither an OAuth client nor a
+static token is configured, asks for the token with echo disabled. The token is
+passed only to the server process and is never written to disk, logs, or shell
+history.
+
 ## Setup from a clean checkout
 
 ```powershell
