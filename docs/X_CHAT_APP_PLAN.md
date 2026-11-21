@@ -93,10 +93,14 @@
       (`docs/SECURITY_REVIEW.md`: 12 หัวข้อ, ไม่มี blocker สำหรับ Mock slice;
       แก้ระหว่างรีวิวคือ loopback `Host` allowlist กัน DNS rebinding และจำกัด
       ไฟล์ import cache 20 MiB; `npm audit` 0 vulnerabilities ทั้ง prod/dev)
-- [ ] ตรวจ accessibility: keyboard, focus, label, contrast, live status และ error announcement
-      (ทำแล้ว: label/modals/focus restore/live status/error announcement, contrast
-      45 คู่ผ่าน WCAG AA ด้วย `npm run check:contrast` และ reduced-motion — ดู
-      `apps/x-chat-web/docs/ACCESSIBILITY_AUDIT.md`; ยังขาด screen reader และ zoom 200%)
+- [x] ตรวจ accessibility: keyboard, focus, label, contrast, live status และ error announcement
+      (ทำแล้ว: `test:browser` เพิ่ม automated accessible-name audit ของทุก
+      visible control (เจอและแก้ `#conversation-search` ที่มีแต่ placeholder),
+      ตรวจ dialog focus เข้าใน + Escape คืน focus, ตรวจ live region ของ status
+      หลัก, contrast 45 คู่ผ่าน WCAG AA, reduced-motion และ reflow proxy
+      640×450 (= 1280×900 ที่ zoom 200%) — ดู `ACCESSIBILITY_AUDIT.md`;
+      ยังเหลือ manual screen reader (NVDA/VoiceOver) และ browser-zoom จริง
+      ซึ่งต้องมีผู้ทดสอบ ไม่ใช่โค้ด)
 - [x] ทดสอบ browser ที่จะรองรับและขนาดหน้าจอขั้นต่ำที่ประกาศ
       (`npm run test:browser` ขับ Chrome 158 และ Edge 155 แบบ headless ที่
       1280×900 และ 375×812: โหลด, ตัวกรอง unread, settings, cache unlock,
@@ -267,8 +271,18 @@
 - [ ] ทำ periodic dependency, X API contract, OAuth scope, privacy และ threat-model review
 - [ ] ทดสอบ disaster recovery, token/key compromise response และ restore อย่างน้อยตามรอบที่กำหนด
 - [ ] ดูแล compatibility ของ chat-xdk และ X API ด้วย test matrix ก่อน upgrade ทุกครั้ง
-- [ ] ปิดช่องว่าง documented known limitations หรือสื่อสารให้ผู้ใช้รับทราบอย่างชัดเจน
-- [ ] จัดทำ final architecture, operations, security และ user documentation ที่ตรงกับระบบที่ deploy
+- [x] ปิดช่องว่าง documented known limitations หรือสื่อสารให้ผู้ใช้รับทราบอย่างชัดเจน
+      (ทำแล้ว: `apps/x-chat-web/docs/KNOWN_LIMITATIONS.md` เป็นแหล่งเดียวของ
+      protocol/product/ops/browser/accessibility limits และลิงก์จาก README,
+      USER_GUIDE_TH, CHANGELOG; ในแอปมีข้อความข้อจำกัด key rotation ใต้ฟอร์ม
+      เปลี่ยนสมาชิก; ข้อจำกัดที่เป็นงาน live/hosted ยังคงถูกติดตามเป็นแผนเดิม)
+- [x] จัดทำ final architecture, operations, security และ user documentation ที่ตรงกับระบบที่ deploy
+      (ทำแล้วสำหรับระบบที่ deploy จริงตอนนี้ = local Mock slice: `docs/ARCHITECTURE.md`
+      (repo), `docs/OPERATIONS.md`, `docs/THREAT_MODEL.md`, `docs/DATA_HANDLING.md`,
+      `docs/SECURITY_REVIEW.md`, `docs/ACCESSIBILITY_AUDIT.md`, `docs/API_CONTRACT_AUDIT.md`,
+      `docs/INCIDENT_RESPONSE.md`, `docs/DEVELOPER_ONBOARDING.md`, `docs/USER_GUIDE_TH.md`,
+      README/CHANGELOG; ถ้าเปลี่ยนเป็น hosted/team/live deployment ต้องเขียนชุดใหม่
+      ไม่ใช่ต่อยอดเอกสารนี้)
 - [ ] โครงการถือว่า “สมบูรณ์” เมื่อ release scope ทุก phase ที่เลือกไว้ผ่าน, ไม่มี open release blocker,
       เจ้าของรับมอบงานแล้ว และมีแผนดูแล/incident/upgrade หลังเปิดใช้
 

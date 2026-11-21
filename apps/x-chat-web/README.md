@@ -4,8 +4,10 @@ Local, single-account web client for encrypted X Chat messages, basic URL text, 
 
 New here? The Thai walkthrough in [docs/USER_GUIDE_TH.md](docs/USER_GUIDE_TH.md)
 covers Mock mode, live setup, PIN unlock, sending, and troubleshooting end to end.
-The app version history is in [CHANGELOG.md](CHANGELOG.md), and setup, build,
-SBOM, backup/restore and rollback steps are in [docs/OPERATIONS.md](docs/OPERATIONS.md).
+The app version history is in [CHANGELOG.md](CHANGELOG.md), setup, build,
+SBOM, backup/restore and rollback steps are in [docs/OPERATIONS.md](docs/OPERATIONS.md),
+and the single list of what the prototype does not do is
+[docs/KNOWN_LIMITATIONS.md](docs/KNOWN_LIMITATIONS.md).
 
 ## Start
 

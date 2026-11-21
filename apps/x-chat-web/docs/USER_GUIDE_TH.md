@@ -15,6 +15,8 @@ PowerShell และรันในโฟลเดอร์ `apps/x-chat-web`
   cache ciphertext ในเครื่อง, draft-first send
 
 **ไม่ใช่:** บริการ hosted, ระบบทีม, ระบบส่งอัตโนมัติ หรือ real-time push
+รายการข้อจำกัดทั้งหมด (protocol, operations, เบราว์เซอร์ และ accessibility)
+อยู่ใน [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md)
 
 ---
 

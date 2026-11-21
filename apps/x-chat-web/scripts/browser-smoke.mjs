@@ -336,6 +336,56 @@ try {
     await offlinePage.close();
   });
 
+  await scenario("desktop accessible names, dialog focus and live regions", async () => {
+    const unnamed = await page.evaluate(() => {
+      const nameFor = (element) => {
+        const labelledBy = element.getAttribute("aria-labelledby");
+        const labelledText = labelledBy
+          ? labelledBy
+              .split(/\s+/)
+              .map((id) => document.getElementById(id)?.textContent || "")
+              .join(" ")
+          : "";
+        const labels = element.labels ? [...element.labels].map((label) => label.textContent || "").join(" ") : "";
+        return (
+          element.getAttribute("aria-label") ||
+          labelledText ||
+          labels ||
+          element.textContent ||
+          element.getAttribute("title") ||
+          ""
+        ).trim();
+      };
+      return [...document.querySelectorAll("button, input, select, textarea, a[href]")]
+        .filter((element) => element.getClientRects().length > 0 && element.type !== "hidden")
+        .filter((element) => !nameFor(element))
+        .map((element) => element.outerHTML.slice(0, 120));
+    });
+    assert.deepEqual(unnamed, [], `controls without an accessible name: ${unnamed.join(" | ")}`);
+
+    for (const id of ["unlock-status", "messages", "send-state", "activity", "conversation-list"]) {
+      const live = await page.getAttribute(`#${id}`, "aria-live");
+      const role = await page.getAttribute(`#${id}`, "role");
+      assert.ok(live === "polite" || role === "status", `#${id} is not a polite live region`);
+    }
+
+    await page.click("#settings-toggle");
+    await page.waitForSelector("#settings-panel[open]", { timeout: 10000 });
+    assert.equal(
+      await page.evaluate(() => document.querySelector("#settings-panel").contains(document.activeElement)),
+      true,
+      "focus did not move into the settings dialog",
+    );
+    assert.equal(await page.getAttribute("#settings-panel", "aria-labelledby"), "settings-title");
+    await page.keyboard.press("Escape");
+    await page.waitForFunction(() => !document.querySelector("#settings-panel[open]"), null, { timeout: 10000 });
+    assert.equal(
+      await page.evaluate(() => document.activeElement?.id),
+      "settings-toggle",
+      "focus did not return to the settings trigger after Escape",
+    );
+  });
+
   await scenario("desktop console is clean", async () => {
     assert.deepEqual(desktopErrors, []);
   });
@@ -356,6 +406,16 @@ try {
 
   await desktop.close();
   await mobile.close();
+
+  const zoomProxy = await browser.newContext({ viewport: { width: 640, height: 450 }, locale: "th-TH" });
+  const zoomPage = await zoomProxy.newPage();
+  await scenario("1280x900 at 200% zoom reflow proxy (640x450)", async () => {
+    await waitForApp(zoomPage, baseUrl);
+    await assertNoHorizontalOverflow(zoomPage, "640x450");
+    await openCacheSection(zoomPage);
+    await assertNoHorizontalOverflow(zoomPage, "640x450 with settings");
+  });
+  await zoomProxy.close();
 } finally {
   if (browser) await browser.close();
   server.child.kill();
