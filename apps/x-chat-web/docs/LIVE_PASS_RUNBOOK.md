@@ -39,14 +39,15 @@ message by itself — each live case still follows
 Static `X_ACCESS_TOKEN` still works, but the OAuth flow keeps the token in the
 server process and never sends it to browser JavaScript.
 
-| Variable                                     | Purpose                                   | Default                                     |
-| -------------------------------------------- | ----------------------------------------- | ------------------------------------------- |
-| `X_OAUTH_CLIENT_ID`                          | OAuth 2.0 client id                       | unset (OAuth disabled)                      |
-| `X_OAUTH_CLIENT_SECRET`                      | Client secret for confidential clients    | unset (public client with PKCE)             |
-| `X_OAUTH_REDIRECT_URI`                       | Callback URL                              | `http://127.0.0.1:<PORT>/api/auth/callback` |
-| `X_OAUTH_SCOPES`                             | Space-separated scopes                    | `dm.read dm.write tweet.read users.read`    |
-| `X_OAUTH_AUTHORIZE_URL`, `X_OAUTH_TOKEN_URL` | Provider endpoints (tests/rehearsal only) | X defaults                                  |
-| `X_API_BASE_URL`                             | X API base URL (tests only)               | `https://api.x.com`                         |
+| Variable                                     | Purpose                                        | Default                                                                    |
+| -------------------------------------------- | ---------------------------------------------- | -------------------------------------------------------------------------- |
+| `X_OAUTH_CLIENT_ID`                          | OAuth 2.0 client id                            | unset (OAuth disabled)                                                     |
+| `X_OAUTH_CLIENT_SECRET`                      | Client secret for confidential clients         | unset (public client with PKCE)                                            |
+| `X_OAUTH_REDIRECT_URI`                       | Callback URL                                   | `http://127.0.0.1:<PORT>/api/auth/callback`                                |
+| `X_OAUTH_SCOPES`                             | Space-separated scopes                         | `dm.read dm.write tweet.read users.read`                                   |
+| `X_OAUTH_AUTHORIZE_URL`, `X_OAUTH_TOKEN_URL` | Provider endpoints (tests/rehearsal only)      | X defaults                                                                 |
+| `X_APP_BEARER_TOKEN`                         | App-only Bearer Token for `/2/activity/stream` | unset (real-time disabled; X forbids OAuth 2.0 user context on the stream) |
+| `X_API_BASE_URL`                             | X API base URL (tests only)                    | `https://api.x.com`                                                        |
 
 1. Start the server with the OAuth variables set: `npm start`.
 2. Open `http://127.0.0.1:8787/api/auth/login` in the browser and sign in as

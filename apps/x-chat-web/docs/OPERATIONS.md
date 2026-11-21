@@ -24,6 +24,7 @@ Configuration is read only from the server process environment:
 | `X_OAUTH_REDIRECT_URI`                        | OAuth callback URL                                    | Default `http://127.0.0.1:<PORT>/api/auth/callback`                |
 | `X_OAUTH_SCOPES`                              | Space-separated OAuth scopes                          | Defaults include `media.write`; add `offline.access` when approved |
 | `X_OAUTH_AUTHORIZE_URL`, `X_OAUTH_TOKEN_URL`  | OAuth endpoints (tests/rehearsal only)                | Default X endpoints                                                |
+| `X_APP_BEARER_TOKEN`                          | App-only Bearer Token for `/2/activity/stream`        | Env-only or hidden prompt; real-time is off without it             |
 | `X_API_BASE_URL`                              | X API base URL (tests only)                           | Default `https://api.x.com`                                        |
 | `X_CHAT_LIVE_OWNER_USER_ID`                   | Single-use Live Create owner ID                       | All four Live Create values must be present and valid              |
 | `X_CHAT_LIVE_OWNER_USERNAME`                  | Single-use Live Create owner username                 | Env-only                                                           |

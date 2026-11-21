@@ -36,6 +36,9 @@ const staticDir = resolve(root, "node_modules/.cache/x-chat-web");
 const sdkDir = resolve(root, "node_modules/@xdevplatform/chat-xdk");
 let port = Number(process.env.PORT || 8787);
 const staticToken = process.env.X_ACCESS_TOKEN || "";
+// App-only bearer (from the developer console) is the only credential X accepts
+// on /2/activity/stream; subscriptions stay on the user-context token.
+const appBearerToken = process.env.X_APP_BEARER_TOKEN || "";
 const mode = process.env.X_CHAT_API_MODE || "live";
 const xBase = process.env.X_API_BASE_URL || "https://api.x.com";
 const oauthScopes = (process.env.X_OAUTH_SCOPES || "").trim();
@@ -169,7 +172,8 @@ async function xRequest(path, options = {}) {
 // The activity stream stays open for as long as X allows, so it cannot borrow
 // fetchX's fixed 10s deadline; cancellation comes from the caller's signal.
 async function activityRequest(path, options = {}) {
-  const accessToken = await currentAccessToken();
+  const isStream = path.startsWith("/2/activity/stream");
+  const accessToken = isStream && appBearerToken ? appBearerToken : await currentAccessToken();
   if (!accessToken) throw new UpstreamError("X_ACCESS_TOKEN is not configured on this local server", { status: 503 });
   const headers = { authorization: `Bearer ${accessToken}` };
   if (options.body !== undefined) headers["content-type"] = "application/json";

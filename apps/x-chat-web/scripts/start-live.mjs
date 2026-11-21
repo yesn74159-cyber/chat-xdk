@@ -57,6 +57,7 @@ if (dryRun) {
     console.error("start:live: ต้องมี X_ACCESS_TOKEN หรือ X_OAUTH_CLIENT_ID");
     process.exit(2);
   }
+  if (process.env.X_APP_BEARER_TOKEN) console.log("dry-run: real-time stream will use X_APP_BEARER_TOKEN");
   process.exit(0);
 }
 
@@ -96,6 +97,20 @@ if (process.env.X_ACCESS_TOKEN) {
 } else {
   console.log(`start:live: โหมด OAuth — เปิด http://127.0.0.1:${port}/api/auth/login เพื่อเชื่อมต่อบัญชี X`);
 }
+
+if (!process.env.X_APP_BEARER_TOKEN && process.stdin.isTTY) {
+  try {
+    const bearer = await promptSecret("วาง X App-only Bearer Token สำหรับ real-time (Enter เพื่อข้าม): ");
+    if (bearer) process.env.X_APP_BEARER_TOKEN = bearer;
+  } catch {
+    // Skipping the prompt only turns real-time off; the inbox still works.
+  }
+}
+console.log(
+  process.env.X_APP_BEARER_TOKEN
+    ? "start:live: real-time stream ใช้ App-only Bearer Token (ซ่อนอยู่ ไม่ถูกบันทึกที่ไหน)"
+    : "start:live: ไม่มี App-only Bearer Token — activity stream จะถูกปฏิเสธ แต่ subscriptions/history ยังทำงาน",
+);
 
 const server = spawn(process.execPath, ["server.mjs"], { cwd: appRoot, stdio: "inherit", env: process.env });
 server.on("exit", (code) => process.exit(code ?? 0));
