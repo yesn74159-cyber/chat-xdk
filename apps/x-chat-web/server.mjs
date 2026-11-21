@@ -1233,6 +1233,17 @@ const server = createServer(async (req, res) => {
   }
 });
 
+server.on("error", (error) => {
+  if ("code" in error && error.code === "EADDRINUSE") {
+    console.error(
+      `X Chat local inbox: 127.0.0.1:${port} is already in use. ` +
+        "Stop the other instance or set PORT to a free port.",
+    );
+    process.exit(1);
+  }
+  throw error;
+});
+
 server.listen(port, "127.0.0.1", () => {
   const address = server.address();
   const boundPort = typeof address === "object" && address ? address.port : port;

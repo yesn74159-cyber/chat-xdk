@@ -2,6 +2,9 @@
 
 Local, single-account web client for encrypted X Chat messages, basic URL text, and one PNG/JPEG image per message. It is an application **outside** the `chat-xdk` SDK crates. Browser WASM does key and content cryptography; the loopback-only Node server holds the X user token and relays ciphertext/API metadata. It does not hold the private key.
 
+New here? The Thai walkthrough in [docs/USER_GUIDE_TH.md](docs/USER_GUIDE_TH.md)
+covers Mock mode, live setup, PIN unlock, sending, and troubleshooting end to end.
+
 ## Start
 
 1. Use Node.js 20 or newer, then run `npm ci` in this directory. The locked
@@ -30,22 +33,32 @@ group ID, has the browser call `prepareGroupCreate`, and sends only the public
 key wraps plus the two signed actions to the local adapter. The raw group key
 stays in browser memory. In live mode the browser asks for an explicit final
 confirmation before any X group-create request. This has `MOCK_API_PASS`, not
-live-group proof. 6. Send text/URL, or choose one PNG/JPEG image. The image is encrypted in the browser before it is uploaded; only then is the encrypted message sent.
+live-group proof. 7. Send text/URL, or choose one PNG/JPEG image. The image is encrypted in the
+browser before it is uploaded; only then is the encrypted message sent.
 
 Run `npm run check` for formatting, JavaScript syntax, TypeScript `checkJs`, and related static checks. `/api/status` reports only whether the token and SDK installation are present, not their values.
 Run `npm run test:mock` for the loopback adapter gate, or `npm test` for both
 the offline crypto and mock adapter tests.
 
-For adapter testing without X credentials or network calls, run with
-`X_CHAT_API_MODE=mock npm start`. Mock mode keeps all state in memory, accepts
-the same local routes, and returns mock-mode sends through its in-memory
-history endpoint. It is not evidence of a live X send or receive.
+For adapter testing without X credentials or network calls, run `npm run start:mock`
+(equivalent to `X_CHAT_API_MODE=mock npm start`, but shell-independent). Mock
+mode keeps all state in memory, accepts the same local routes, and returns
+mock-mode sends through its in-memory history endpoint. It is not evidence of a
+live X send or receive.
 
 In Mock mode, **สร้างตัวตน Mock ชั่วคราว** generates an ephemeral local test
 identity and two peer identities in the browser, registers only their public keys
 with the in-memory adapter, and pre-fills the peer ID for the group form. It
 does not use an X token or real account, and the mock identities disappear when
 the page or server is restarted.
+
+## Supported browsers
+
+The development baseline is the current desktop Chrome or Edge. The page needs
+WebAssembly, WebCrypto on a secure context (`127.0.0.1` qualifies), IndexedDB,
+and the `<dialog>` element. Firefox and Safari are **not verified** — there is
+no browser matrix in CI yet, so treat any other engine as unsupported rather
+than assuming it works.
 
 ## Boundaries
 
