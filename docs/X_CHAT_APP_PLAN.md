@@ -116,9 +116,9 @@
 - [x] ตรวจสัญญา X API/OpenAPI ที่ใช้อยู่: public-key/event fields ถูกระบุ explicit, `segment_index` เป็น integer 0–999, `num_parts` เป็น numeric string และ error ไม่เผย upstream body
 - [ ] สร้าง/ตรวจ X Developer app และอนุมัติการเข้าถึง X Chat ที่จำเป็น
 - [x] จัดทำ live preflight/checklist ที่ไม่บันทึก secret สำหรับ OAuth, test identities และ evidence
-- [ ] ยืนยัน OAuth user-context flow, redirect URI, token lifetime/refresh และ least-privilege scopes
-- [ ] ยืนยัน `dm.read`, `dm.write`, `tweet.read`, `users.read`, `media.write` และ scope เพิ่มเติมที่ operation จริงระบุ
-- [ ] เก็บ token เฉพาะ local secret store/environment; ไม่ส่ง token ให้ browser JavaScript หรือ log
+- [ ] ยืนยัน OAuth user-context flow, redirect URI, token lifetime/refresh และ least-privilege scopes (`apps/x-chat-web/lib/oauth-client.mjs` ทำ PKCE S256 + single-use state + refresh และมี fake-IdP test แล้ว; เหลือยืนยันกับแอป X จริง)
+- [ ] ยืนยัน `dm.read`, `dm.write`, `tweet.read`, `users.read`, `media.write` และ scope เพิ่มเติมที่ operation จริงระบุ (`npm run preflight:live` ตรวจรายชื่อ scope ให้; รอ scope ที่อนุมัติจริง)
+- [ ] เก็บ token เฉพาะ local secret store/environment; ไม่ส่ง token ให้ browser JavaScript หรือ log (OAuth token อยู่ในหน่วยความจำ server เท่านั้น และ `/api/auth/status` คืนเฉพาะสถานะ; รอการยืนยัน end-to-end กับแอปจริง)
 - [ ] สร้างบัญชีทดสอบ A/B และ conversation ที่ทั้งสองฝ่ายยินยอมรับข้อความ
 - [ ] ตรวจ public signing keys, identity keys และ key version ของทั้งสองบัญชีก่อนส่ง
 - [ ] ทดสอบเริ่ม session: import/unlock, `setIdentity`, signing keys และ conversation keys
