@@ -121,47 +121,43 @@ test("subscription bodies pin the user filter for both chat event types", () => 
   });
 });
 
-test("subscriptions reuse existing rows and create only the missing chat event types", async () => {
+test("subscription creation stays off the like.read-gated list route", async () => {
   const created = [];
   const { fetchImpl, calls } = fakeFetch({
     [ACTIVITY_SUBSCRIPTIONS_PATH]: (options) => {
       if (options.method === "POST") {
         created.push(options.body);
+        if (options.body.event_type === "chat.received") {
+          return jsonResponse({ detail: "DuplicateSubscription" }, 409);
+        }
         return jsonResponse({ data: { id: `sub-${created.length}` } }, 201);
       }
-      return jsonResponse({
-        data: [
-          { id: "sub-old", event_type: "chat.received", filter: { user_id: ownerId } },
-          { id: "webhook", event_type: "chat.sent", filter: { user_id: ownerId }, webhook_id: "9" },
-          { id: "other", event_type: "chat.received", filter: { user_id: "999" } },
-        ],
-      });
+      return jsonResponse({ detail: "Missing required scope like.read" }, 403);
     },
   });
   const activity = createActivityStream({ request: fetchImpl });
   const ids = await activity.ensureSubscriptions(ownerId);
-  assert.equal(ids["chat.received"], "sub-old");
-  assert.equal(ids["chat.sent"], "sub-1");
-  assert.equal(created.length, 1);
-  assert.equal(created[0].event_type, "chat.sent");
-  assert.equal(calls.filter((call) => call.method === "POST").length, 1);
+  assert.deepEqual(ids, { "chat.received": "existing", "chat.sent": "sub-2" });
+  assert.deepEqual(
+    created.map((body) => body.event_type),
+    ["chat.received", "chat.sent"],
+  );
+  assert.equal(calls.filter((call) => call.method === "GET").length, 0);
+  assert.equal(created[1].filter.user_id, ownerId);
 });
 
-test("duplicate subscription errors fall back to the existing list", async () => {
+test("a permanent subscription failure surfaces the upstream detail", async () => {
   const { fetchImpl } = fakeFetch({
-    [ACTIVITY_SUBSCRIPTIONS_PATH]: (options) => {
-      if (options.method === "POST") return jsonResponse({ detail: "DuplicateSubscription" }, 409);
-      return jsonResponse({
-        data: [
-          { id: "a", event_type: "chat.received", filter: { user_id: ownerId } },
-          { id: "b", event_type: "chat.sent", filter: { user_id: ownerId } },
-        ],
-      });
-    },
+    [ACTIVITY_SUBSCRIPTIONS_PATH]: () =>
+      jsonResponse({ title: "Forbidden", detail: "Not authorized for this endpoint" }, 403),
   });
   const activity = createActivityStream({ request: fetchImpl });
-  const ids = await activity.ensureSubscriptions(ownerId);
-  assert.deepEqual(ids, { "chat.received": "a", "chat.sent": "b" });
+  await assert.rejects(activity.ensureSubscriptions(ownerId), (error) => {
+    const failure = /** @type {Error & { status: number }} */ (error);
+    assert.equal(failure.status, 403);
+    assert.match(failure.message, /HTTP 403 — .*Not authorized/);
+    return true;
+  });
 });
 
 test("stream frames are parsed across chunks, deduplicated, and filtered to chat", async () => {

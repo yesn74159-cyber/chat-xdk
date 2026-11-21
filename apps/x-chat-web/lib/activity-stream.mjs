@@ -107,28 +107,24 @@ export function createActivityStream({ request, sleep = sleepDefault, onAuthRequ
         return {};
       }
     }
-    const error = Object.assign(new Error(`activity API HTTP ${response.status}`), {
+    let detail = "";
+    try {
+      const text = (await response.text()).replace(/\s+/g, " ").trim().slice(0, 300);
+      if (text) detail = ` — ${text}`;
+    } catch {
+      // Unreadable error body: the status alone still identifies the failure.
+    }
+    const error = Object.assign(new Error(`activity API HTTP ${response.status}${detail}`), {
       status: response.status,
     });
     throw error;
   }
 
-  async function listChatSubscriptions(ownerId) {
-    const body = await jsonCall(ACTIVITY_SUBSCRIPTIONS_PATH);
-    const rows = Array.isArray(body?.data) ? body.data : [];
-    return rows.filter(
-      (row) =>
-        row &&
-        CHAT_EVENT_TYPES.includes(row.event_type) &&
-        !row.webhook_id &&
-        String(row.filter?.user_id ?? "") === String(ownerId),
-    );
-  }
-
+  // Listing subscriptions needs like.read, which a chat-only app has no reason
+  // to request. POST is idempotent enough in practice: an already-existing
+  // subscription answers 409/400 and that is exactly what we want to hear.
   async function ensureSubscriptions(ownerId) {
     if (!ownerId) throw new Error("activity subscriptions need a user id");
-    const existing = await listChatSubscriptions(ownerId);
-    for (const row of existing) subscriptions.set(row.event_type, String(row.id));
     for (const eventType of CHAT_EVENT_TYPES) {
       if (subscriptions.has(eventType)) continue;
       try {
@@ -137,12 +133,10 @@ export function createActivityStream({ request, sleep = sleepDefault, onAuthRequ
           body: chatSubscriptionBody(ownerId, eventType),
         });
         const id = body?.data?.id ?? body?.id;
-        if (id !== undefined) subscriptions.set(eventType, String(id));
+        subscriptions.set(eventType, id === undefined ? "created" : String(id));
       } catch (error) {
         if (error.status !== 409 && error.status !== 400) throw error;
-        // Duplicate subscriptions and already-covered filters are not fatal.
-        const relisted = await listChatSubscriptions(ownerId).catch(() => []);
-        for (const row of relisted) subscriptions.set(row.event_type, String(row.id));
+        subscriptions.set(eventType, "existing");
       }
     }
     return Object.fromEntries(subscriptions);
@@ -225,7 +219,14 @@ export function createActivityStream({ request, sleep = sleepDefault, onAuthRequ
           signal,
         });
         if (response.status === 401 || response.status === 403) {
-          const error = Object.assign(new Error("activity stream authentication expired"), {
+          let detail = "";
+          try {
+            const text = (await response.text()).replace(/\s+/g, " ").trim().slice(0, 200);
+            if (text) detail = ` — ${text}`;
+          } catch {
+            // Status alone still explains the dropped stream.
+          }
+          const error = Object.assign(new Error(`activity stream authentication expired${detail}`), {
             status: response.status,
             authRequired: true,
           });

@@ -98,8 +98,10 @@ const metrics = { requests: 0, responses: new Map(), serverErrors: 0 };
 
 const liveActivity = mode === "mock" ? null : createActivityStream({ request: activityRequest });
 const streamClients = new Set();
+const ACTIVITY_ERROR_TTL_MS = 60_000;
 let activityOwnerId = "";
 let activityStartPromise = null;
+let activityStartError = null;
 
 if (liveActivity) {
   liveActivity.subscribe((frame) => {
@@ -182,6 +184,9 @@ async function activityRequest(path, options = {}) {
 
 async function ensureLiveActivity() {
   if (activityStartPromise) return activityStartPromise;
+  if (activityStartError && Date.now() - activityStartError.at < ACTIVITY_ERROR_TTL_MS) {
+    throw activityStartError.error;
+  }
   activityStartPromise = (async () => {
     if (!activityOwnerId) {
       const me = (await adapterJson("/2/users/me"))?.data;
@@ -191,7 +196,11 @@ async function ensureLiveActivity() {
   })();
   try {
     await activityStartPromise;
+    activityStartError = null;
   } catch (error) {
+    // A scope/permission rejection will not fix itself on a five-second
+    // EventSource retry, so remember it instead of hammering X.
+    if (error.status === 400 || error.status === 403) activityStartError = { at: Date.now(), error };
     activityStartPromise = null;
     throw error;
   }
