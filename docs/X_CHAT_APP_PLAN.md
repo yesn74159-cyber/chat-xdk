@@ -94,8 +94,12 @@
       (ทำแล้ว: label/modals/focus restore/live status/error announcement, contrast
       45 คู่ผ่าน WCAG AA ด้วย `npm run check:contrast` และ reduced-motion — ดู
       `apps/x-chat-web/docs/ACCESSIBILITY_AUDIT.md`; ยังขาด screen reader และ zoom 200%)
-- [ ] ทดสอบ browser ที่จะรองรับและขนาดหน้าจอขั้นต่ำที่ประกาศ (ประกาศ baseline
-      Chrome/Edge ใน README แล้ว; ยังไม่มี browser matrix จริง)
+- [x] ทดสอบ browser ที่จะรองรับและขนาดหน้าจอขั้นต่ำที่ประกาศ
+      (`npm run test:browser` ขับ Chrome 158 และ Edge 155 แบบ headless ที่
+      1280×900 และ 375×812: โหลด, ตัวกรอง unread, settings, cache unlock,
+      reload แล้ว cache ยังอยู่, offline shell, ไม่มี horizontal overflow และ
+      ไม่มี console/page error — 6 scenario ผ่านทั้งสองเบราว์เซอร์;
+      Firefox/Safari ยังไม่รองรับ)
 - [x] ทำให้ `STATIC_PASS` เป็น CI gate ที่บันทึกผลได้
 
 ### P3 — เตรียม X integration และ LIVE_PASS อย่างปลอดภัย
@@ -135,10 +139,15 @@
 - [x] แสดง preview เฉพาะหลัง decrypt และยอมเฉพาะ PNG/JPEG ที่ตรวจ magic bytes; URL render เป็น text node/HTTP(S) link พร้อม `noopener noreferrer`
 - [ ] ทำ search/filter เฉพาะ scope ข้อมูลที่ถูกอนุญาต และกำหนด indexing/retention ของ plaintext
 - [ ] ทำ export/delete local data และทดสอบ restore โดยไม่ทำข้อมูลอื่นหาย
-- [ ] ทดสอบ restart, offline, corrupted cache, missing history page และ concurrent tabs
-      (ทำแล้ว: offline decrypt fallback, tampered/malformed cache envelope fail-closed
-      test, cross-tab `BroadcastChannel` guard + unit test; ยังขาด UI restart และ
-      missing-page scenario แบบ end-to-end)
+      (ทำแล้ว: import ตรวจ envelope ก่อนเขียนทับ ทิ้งไฟล์เสียโดยไม่แตะ cache
+      เดิม + round-trip test และ browser smoke ยืนยันว่า reload แล้ว cache
+      เดิมยังปลดล็อกได้; ยังขาด UI test ของ clear/delete)
+- [x] ทดสอบ restart, offline, corrupted cache, missing history page และ concurrent tabs
+      (restart/offline: `npm run test:browser` reload แล้วปลดล็อก cache เดิมได้
+      และ offline แล้ว shell ยังใช้งานได้; corrupted cache: tampered/malformed
+      envelope fail-closed test; missing page: mock คืนหน้าว่างแทน error;
+      concurrent tabs: `BroadcastChannel` guard + unit test — ยังไม่ได้ทำ
+      multi-tab E2E ในเบราว์เซอร์จริง)
 
 ### P5 — Real-time delivery และความน่าเชื่อถือ
 
@@ -150,6 +159,9 @@
 - [ ] ประมวล `conversation_key_change_event` ก่อน message และรักษา monotonic key-version floor
 - [ ] ทดสอบ duplicate/out-of-order/lost delivery, reconnect และ backfill โดยไม่ render plaintext ที่ไม่ verify
 - [ ] ทำ health/metrics ที่ไม่มี plaintext/key/token และ alert เฉพาะ operational signal ที่จำเป็น
+      (ทำแล้ว: `/api/health` + `/api/metrics` นับ request/status bucket/server
+      error โดยไม่เผย path หรือ PII + mock test; alerting ต้องมี infra
+      จึงยังไม่ทำ)
 - [ ] ทำ load/soak test กับ mock เพื่อวัด memory, queue/backpressure และ rate-limit behavior
 - [ ] UAT: ส่งและรับใน real-time, restart/reconnect และ history reconciliation ผ่านเกณฑ์
 
@@ -162,9 +174,17 @@
 - [ ] LIVE: สร้างกลุ่มที่ทุกบัญชียินยอม และทดสอบข้อความ/ภาพผ่าน X API จริง
 - [ ] เพิ่มสมาชิก: rotate key, เผยแพร่ wraps, และยืนยันว่าสมาชิกใหม่อ่านข้อความหลังเข้าร่วมได้
 - [ ] ลบสมาชิก: rotate key และยืนยันว่าผู้ถูกลบเปิดข้อความภายใต้ key ใหม่ไม่ได้
-- [ ] แสดง/สื่อสารข้อจำกัด protocol: ผู้ที่เคยได้ key เก่าอาจอ่านข้อความเก่าที่เคยเข้าถึงได้
+- [x] แสดง/สื่อสารข้อจำกัด protocol: ผู้ที่เคยได้ key เก่าอาจอ่านข้อความเก่าที่เคยเข้าถึงได้
+      (ข้อความใน settings ใต้ฟอร์มเปลี่ยนสมาชิก ระบุว่า rotation มีผลเฉพาะ
+      ข้อความหลังเปลี่ยน และผู้ที่เคยได้คีย์เก่าอาจอ่านข้อความเก่าได้)
 - [ ] รองรับกรณี signing key ของผู้สร้าง/แอดมินเก่าไม่อยู่ใน public-key endpoint ตามแนวทางที่ตรวจทานด้านความปลอดภัย
+      (ทำแล้ว: ตรวจ response แบบ array/single object ผ่าน `signing-key-records`
+      และแสดงจำนวนบัญชีที่หา key ไม่พบใน activity แทนการทิ้งเงียบ; ยังไม่มี
+      recovery flow สำหรับกุญแจที่ถูกลบถาวร)
 - [ ] ทดสอบ membership races, stale key, unauthorized member change และ recovery จาก partial history
+      (ทำแล้ว: stale roster/key version ถูกปฏิเสธ, สมาชิกที่ไม่มีสิทธิ์แก้
+      รายชื่อไม่ได้, และการเปลี่ยนสมาชิกหมุน key พร้อมกันใน mock test;
+      recovery จาก partial history ยังไม่ทดสอบ)
 - [ ] UAT กลุ่มอย่างน้อยสามสมาชิกพร้อมหลักฐาน redacted
 
 ### P7 — Team workflow
@@ -191,8 +211,10 @@
 
 ### P9 — Release readiness และเปิดใช้
 
-- [ ] กำหนด supported platforms/browsers, system requirements และ compatibility matrix
-      (ประกาศ Node 20+ และ Chrome/Edge baseline แล้ว; ยังไม่มี compatibility matrix ที่รันจริง)
+- [x] กำหนด supported platforms/browsers, system requirements และ compatibility matrix
+      (Node 20+, desktop Chrome/Edge, 127.0.0.1 secure context, WASM/WebCrypto/
+      IndexedDB/`<dialog>`; `npm run test:browser` รัน matrix จริงบน Chrome 158
+      และ Edge 155 ที่ 1280×900 + 375×812 — ดู README §Supported browsers)
 - [ ] ทำ reproducible build, signed artifacts และ dependency/license/SBOM review
 - [ ] แยก dev/test/prod configuration และ secret stores; ไม่มี production secret ใน build artifact
 - [ ] ทำ environment setup, migration, backup/restore และ rollback runbook

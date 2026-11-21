@@ -38,7 +38,10 @@ browser before it is uploaded; only then is the encrypted message sent.
 
 Run `npm run check` for formatting, JavaScript syntax, TypeScript `checkJs`, and related static checks. `/api/status` reports only whether the token and SDK installation are present, not their values.
 Run `npm run test:mock` for the loopback adapter gate, or `npm test` for both
-the offline crypto and mock adapter tests.
+the offline crypto and mock adapter tests. Run `npm run test:browser` for the
+installed-browser smoke (Chrome/Edge, desktop + 375px); it uses
+`playwright-core` with the system browser and skips when none is found. Set
+`X_CHAT_BROWSER_PATH` to pick a specific browser executable.
 
 For adapter testing without X credentials or network calls, run `npm run start:mock`
 (equivalent to `X_CHAT_API_MODE=mock npm start`, but shell-independent). Mock
@@ -56,9 +59,9 @@ the page or server is restarted.
 
 The development baseline is the current desktop Chrome or Edge. The page needs
 WebAssembly, WebCrypto on a secure context (`127.0.0.1` qualifies), IndexedDB,
-and the `<dialog>` element. Firefox and Safari are **not verified** — there is
-no browser matrix in CI yet, so treat any other engine as unsupported rather
-than assuming it works.
+and the `<dialog>` element. `npm run test:browser` exercises Chrome and Edge in
+headless mode; Firefox and Safari are **not verified**, so treat any other
+engine as unsupported rather than assuming it works.
 
 ## Boundaries
 
