@@ -64,6 +64,26 @@ function redactError(error) {
   return message.replace(/[\u0000-\u001f\u007f]+/g, " ").slice(0, MAX_ERROR_CHARS);
 }
 
+async function problemDetail(response, limit = 300) {
+  try {
+    const body = (await response.text())
+      .replace(/[\u0000-\u001f\u007f]+/g, " ")
+      .trim()
+      .slice(0, limit);
+    return body ? ` — ${body}` : "";
+  } catch {
+    // An unreadable body still leaves the status to identify the failure.
+    return "";
+  }
+}
+
+function isDuplicateSubscription(error) {
+  if (error.status === 409) return true;
+  // X can also answer a re-created subscription with 400; only a problem body
+  // that says duplicate is safe to read as "already subscribed".
+  return error.status === 400 && /duplicate|already/i.test(error.message);
+}
+
 /**
  * @typedef {{ kind: "chat", eventUuid: string, eventType: string, createdAt: string, conversationId: string, messageId: string, senderId: string, conversationKeyVersion: string, createdAtMsec: string }} ChatFrame
  * @typedef {{ kind: "status", state: string, attempt: number, delivered: number, error: string, updatedAt: string }} StatusFrame
@@ -107,22 +127,14 @@ export function createActivityStream({ request, sleep = sleepDefault, onAuthRequ
         return {};
       }
     }
-    let detail = "";
-    try {
-      const text = (await response.text()).replace(/\s+/g, " ").trim().slice(0, 300);
-      if (text) detail = ` — ${text}`;
-    } catch {
-      // Unreadable error body: the status alone still identifies the failure.
-    }
-    const error = Object.assign(new Error(`activity API HTTP ${response.status}${detail}`), {
+    const error = Object.assign(new Error(`activity API HTTP ${response.status}${await problemDetail(response)}`), {
       status: response.status,
     });
     throw error;
   }
 
-  // Listing subscriptions needs like.read, which a chat-only app has no reason
-  // to request. POST is idempotent enough in practice: an already-existing
-  // subscription answers 409/400 and that is exactly what we want to hear.
+  // Listing subscriptions needs like.read under a user token, which a chat-only
+  // app has no reason to request, so creation is POST-only here.
   async function ensureSubscriptions(ownerId) {
     if (!ownerId) throw new Error("activity subscriptions need a user id");
     for (const eventType of CHAT_EVENT_TYPES) {
@@ -135,7 +147,7 @@ export function createActivityStream({ request, sleep = sleepDefault, onAuthRequ
         const id = body?.data?.id ?? body?.id;
         subscriptions.set(eventType, id === undefined ? "created" : String(id));
       } catch (error) {
-        if (error.status !== 409 && error.status !== 400) throw error;
+        if (!isDuplicateSubscription(error)) throw error;
         subscriptions.set(eventType, "existing");
       }
     }
@@ -219,22 +231,15 @@ export function createActivityStream({ request, sleep = sleepDefault, onAuthRequ
           signal,
         });
         if (response.status === 401 || response.status === 403) {
-          let detail = "";
-          try {
-            const text = (await response.text()).replace(/\s+/g, " ").trim().slice(0, 200);
-            if (text) detail = ` — ${text}`;
-          } catch {
-            // Status alone still explains the dropped stream.
-          }
-          const error = Object.assign(new Error(`activity stream authentication expired${detail}`), {
-            status: response.status,
-            authRequired: true,
-          });
+          const error = Object.assign(
+            new Error(`activity stream authentication expired${await problemDetail(response, 200)}`),
+            { status: response.status, authRequired: true },
+          );
           setStatus("auth-required", attempt, redactError(error));
           onAuthRequired(error);
           return;
         }
-        if (!response.ok) throw new Error(`activity stream HTTP ${response.status}`);
+        if (!response.ok) throw new Error(`activity stream HTTP ${response.status}${await problemDetail(response)}`);
         attempt = 0;
         setStatus("connected", 0);
         await readStream(response.body, signal);

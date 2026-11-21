@@ -2417,6 +2417,7 @@ const liveStreamLabels = {
   connecting: "เรียลไทม์: กำลังเชื่อมต่อ…",
   connected: "เรียลไทม์: เชื่อมต่อแล้ว",
   "auth-required": "เรียลไทม์: ต้องเชื่อมต่อบัญชี X ใหม่",
+  failed: "เรียลไทม์: เริ่มไม่สำเร็จ",
   stopped: "เรียลไทม์: หยุดชั่วคราว",
 };
 
@@ -2428,6 +2429,17 @@ function setLiveStreamStatus(stateName, attempt = 0) {
     stateName === "reconnecting"
       ? `เรียลไทม์: กำลังเชื่อมต่อใหม่ (ครั้งที่ ${attempt || 1})`
       : (liveStreamLabels[stateName] ?? "เรียลไทม์: สถานะไม่ทราบ");
+}
+
+let lastStreamNotice = "";
+
+// X's own problem text is the only clue about which credential or entitlement
+// is missing, and EventSource cannot read a body — so the frame carries it.
+function noteStreamFailure(frame) {
+  const reason = `${frame.state}: ${frame.error}`;
+  if (!frame.error || reason === lastStreamNotice) return;
+  lastStreamNotice = reason;
+  activity(`เรียลไทม์: ${frame.error}`);
 }
 
 function sameConversationId(localId, deliveredId) {
@@ -2491,6 +2503,7 @@ function startLiveStream() {
     const frame = parse(message);
     if (!frame) return;
     setLiveStreamStatus(frame.state, frame.attempt);
+    noteStreamFailure(frame);
     if (frame.state === "auth-required") {
       source.close();
       state.liveStream = null;

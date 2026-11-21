@@ -36,8 +36,9 @@ const staticDir = resolve(root, "node_modules/.cache/x-chat-web");
 const sdkDir = resolve(root, "node_modules/@xdevplatform/chat-xdk");
 let port = Number(process.env.PORT || 8787);
 const staticToken = process.env.X_ACCESS_TOKEN || "";
-// App-only bearer (from the developer console) is the only credential X accepts
-// on /2/activity/stream; subscriptions stay on the user-context token.
+// Chat subscriptions are private events, so X wants the user-context token for
+// them; only the stream is app-authenticated and rejects a user token. Without
+// a bearer the stream still tries the user token so the inbox keeps working.
 const appBearerToken = process.env.X_APP_BEARER_TOKEN || "";
 const mode = process.env.X_CHAT_API_MODE || "live";
 const xBase = process.env.X_API_BASE_URL || "https://api.x.com";
@@ -132,6 +133,29 @@ function broadcastStream(event, payload) {
       streamClients.delete(client);
     }
   }
+}
+
+// The browser learns real-time state only from this channel, so a stream that
+// could not start comes back as a frame: EventSource never reads an HTTP body.
+function streamFailure(res, error) {
+  res.writeHead(200, {
+    ...securityHeaders(),
+    "content-type": "text/event-stream; charset=utf-8",
+    "cache-control": "no-store, no-transform",
+    "x-accel-buffering": "no",
+  });
+  const message = String(error?.message ?? error)
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 200);
+  sseFrame(res, "status", {
+    state: "failed",
+    attempt: 0,
+    delivered: 0,
+    error: message,
+    updatedAt: new Date().toISOString(),
+  });
+  res.end();
 }
 
 function json(res, status, body, headers = {}) {
@@ -648,7 +672,11 @@ async function api(req, res, url) {
   }
   if (path === "/api/stream" && req.method === "GET") {
     if (!liveActivity) return json(res, 501, { error: "Real-time streaming is only available in live mode" });
-    await ensureLiveActivity();
+    try {
+      await ensureLiveActivity();
+    } catch (error) {
+      return streamFailure(res, error);
+    }
     res.writeHead(200, {
       ...securityHeaders(),
       "content-type": "text/event-stream; charset=utf-8",

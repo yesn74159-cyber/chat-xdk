@@ -1,6 +1,6 @@
 # แผนแอป X Chat: ข้อความ ลิงก์ และภาพเป็นอันดับแรก
 
-สถานะ: อัปเดต (2026-11-21) — ต้นแบบ local-only ที่ `apps/x-chat-web/` ผ่าน offline/mock/static gate ในเครื่อง (149 offline + 22 mock), มีคู่มือผู้ใช้ภาษาไทย, a11y audit บางส่วน และ cross-tab cache guard; LIVE_PASS ปิดครบแล้ว (ข้อความ/URL/ภาพสองทาง, multi-part, B-side verify, negative cases) พร้อมถอน OAuth 2.0 access token และลบไฟล์ทดสอบ — real-time events ต่อผ่าน `/api/stream` (SSE) แล้ว เหลือ UAT กับบัญชีจริง; เฟสถัดไปคือ inbox persistence; ข้อที่ติดบัญชี/สิทธิ์ดูหัวข้อ "สิ่งที่ยังติด (Blocked)"
+สถานะ: อัปเดต (2026-11-21) — ต้นแบบ local-only ที่ `apps/x-chat-web/` ผ่าน offline/mock/static gate ในเครื่อง (155 offline + 22 mock), มีคู่มือผู้ใช้ภาษาไทย, a11y audit บางส่วน และ cross-tab cache guard; LIVE_PASS ปิดครบแล้ว (ข้อความ/URL/ภาพสองทาง, multi-part, B-side verify, negative cases) พร้อมถอน OAuth 2.0 access token และลบไฟล์ทดสอบ — real-time events ต่อผ่าน `/api/stream` (SSE) แล้ว เหลือ UAT กับบัญชีจริง; เฟสถัดไปคือ inbox persistence; ข้อที่ติดบัญชี/สิทธิ์ดูหัวข้อ "สิ่งที่ยังติด (Blocked)"
 
 ## สถานะงานปัจจุบัน
 
@@ -231,7 +231,14 @@ token (ไม่ได้ขอ `offline.access`) — แอปจึงเพ�
       HTTPS บนพอร์ต 443 + CRC/signature/replay window ซึ่งไม่มีในเครื่องนี้;
       subscription ใช้ `chat.received` + `chat.sent` กับ filter `user_id`
       ฝั่ง user-context, backfill สูงสุด 5 นาทีต่อการเชื่อมต่อ จึงใช้
-      `backfill_minutes=5` ตอน reconnect และพึ่ง history pagination เติมช่องว่างที่นานกว่า)
+      `backfill_minutes=5` ตอน reconnect และพึ่ง history pagination เติมช่องว่างที่นานกว่า;
+      2026-11-21 ทดลองกับบัญชีจริง: X ตอบ 403 "Unsupported Authentication" เมื่อใช้
+      user-context กับ stream และ 403 "like.read" เมื่อ list subscription — จึงแยก
+      credential ตามเอกสาร X Chat (chat.\* เป็น private event: สร้าง subscription
+      ด้วย user-context token, ใช้ App-only Bearer ใน `X_APP_BEARER_TOKEN` เฉพาะ
+      `/2/activity/stream`) และหยุดตีความ HTTP 400 ของ POST subscription ว่า "มีอยู่แล้ว"
+      เพราะกลืน error จริงของ X ไว้; เหตุผลที่เริ่มสตรีมไม่สำเร็จส่งมาเป็น status frame
+      `state: "failed"` + ข้อความ problem จาก X เพราะ EventSource อ่าน response body ไม่ได้)
 - [x] ทำ subscription lifecycle: create/list/reuse ของ `chat.received` + `chat.sent`;
       เมื่อแท็บสุดท้ายปิดจะ abort upstream stream ทันที (ไม่ลบ subscription
       เพราะตัว subscription เองไม่มี state ที่ต้อง cleanup และคงไว้ให้ reconnect

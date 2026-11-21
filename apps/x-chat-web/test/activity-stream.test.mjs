@@ -273,3 +273,45 @@ test("an expired session stops the stream and asks for reconnection", async () =
   assert.equal(reconnects, 1);
   assert.equal(activity.status().state, "auth-required");
 });
+
+test("a rejected subscription creation is not read as already existing", async () => {
+  const { fetchImpl } = fakeFetch({
+    [ACTIVITY_SUBSCRIPTIONS_PATH]: () =>
+      jsonResponse({ title: "Invalid Request", detail: "event_type is not enabled for this client" }, 400),
+  });
+  const activity = createActivityStream({ request: fetchImpl });
+  await assert.rejects(activity.ensureSubscriptions(ownerId), (error) => {
+    const failure = /** @type {Error & { status: number }} */ (error);
+    assert.equal(failure.status, 400);
+    assert.match(failure.message, /event_type is not enabled/);
+    return true;
+  });
+});
+
+test("a duplicate subscription answer still counts as subscribed", async () => {
+  const { fetchImpl } = fakeFetch({
+    [ACTIVITY_SUBSCRIPTIONS_PATH]: () =>
+      jsonResponse({ title: "Conflict", detail: "DuplicateSubscription: already subscribed" }, 400),
+  });
+  const activity = createActivityStream({ request: fetchImpl });
+  assert.deepEqual(await activity.ensureSubscriptions(ownerId), {
+    "chat.received": "existing",
+    "chat.sent": "existing",
+  });
+});
+
+test("a refused stream carries X's problem text into the status frame", async () => {
+  const { fetchImpl } = fakeFetch({
+    [ACTIVITY_SUBSCRIPTIONS_PATH]: () => jsonResponse({ data: { id: "sub-1" } }, 201),
+    [ACTIVITY_STREAM_PATH]: () =>
+      jsonResponse({ title: "Invalid Request", detail: "no subscriptions are active" }, 400),
+  });
+  const activity = createActivityStream({ request: fetchImpl, sleep: testSleep() });
+  const failures = [];
+  activity.subscribe((frame) => {
+    if (frame.kind === "status" && frame.error) failures.push(frame.error);
+  });
+  await activity.start(ownerId);
+  await waitFor(() => failures.some((error) => error.includes("no subscriptions are active")));
+  await activity.stop();
+});

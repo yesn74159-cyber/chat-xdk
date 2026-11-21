@@ -104,7 +104,7 @@ function readStreamUntilChat(base) {
   });
 }
 
-test("the activity stream authenticates with the app-only bearer token", { timeout: 25_000 }, async () => {
+test("chat subscriptions use the user token and only the stream uses the app bearer", { timeout: 25_000 }, async () => {
   const seen = [];
   const upstream = startFakeX(seen);
   upstream.listen(0, "127.0.0.1");
@@ -126,11 +126,78 @@ test("the activity stream authenticates with the app-only bearer token", { timeo
     assert.equal(streamCall.auth, `Bearer ${appBearer}`);
     assert.ok(subscribeCalls.length >= 1);
     for (const call of subscribeCalls) assert.equal(call.auth, `Bearer ${userToken}`);
+    const meCall = seen.find((call) => call.path === "/2/users/me");
+    assert.equal(meCall.auth, `Bearer ${userToken}`);
     assert.equal(
       seen.filter((call) => call.auth === `Bearer ${appBearer}`).length,
       1,
-      "the app-only bearer must not be sent to subscription routes",
+      "the app-only bearer belongs on the stream and nowhere else",
     );
+  } finally {
+    if (child.exitCode === null) {
+      const exited = once(child, "exit");
+      child.kill();
+      await exited;
+    }
+    upstream.close();
+  }
+});
+
+test("without a bearer the activity API falls back to the user token", { timeout: 25_000 }, async () => {
+  const seen = [];
+  const upstream = startFakeX(seen);
+  upstream.listen(0, "127.0.0.1");
+  await once(upstream, "listening");
+  const address = upstream.address();
+  const upstreamPort = typeof address === "object" && address ? address.port : 0;
+  const { child, ready } = startServer({
+    X_ACCESS_TOKEN: userToken,
+    X_API_BASE_URL: `http://127.0.0.1:${upstreamPort}`,
+  });
+  try {
+    const base = await ready;
+    const { frames } = await readStreamUntilChat(base);
+    assert.ok(frames.some((frame) => frame.startsWith("event: chat")));
+    const activityCalls = seen.filter((call) => call.path.startsWith("/2/activity/"));
+    assert.ok(activityCalls.length >= 2);
+    for (const call of activityCalls) assert.equal(call.auth, `Bearer ${userToken}`);
+  } finally {
+    if (child.exitCode === null) {
+      const exited = once(child, "exit");
+      child.kill();
+      await exited;
+    }
+    upstream.close();
+  }
+});
+
+test("a stream that cannot start reports X's reason as a frame", { timeout: 25_000 }, async () => {
+  const upstream = createServer(async (req, res) => {
+    const path = req.url.split("?")[0];
+    if (path === "/2/users/me") {
+      res.writeHead(200, { "content-type": "application/json" });
+      return res.end(JSON.stringify({ data: { id: ownerId } }));
+    }
+    for await (const _ of req);
+    res.writeHead(400, { "content-type": "application/problem+json" });
+    res.end(JSON.stringify({ title: "Invalid Request", detail: "chat events are not enabled for this client" }));
+  });
+  upstream.listen(0, "127.0.0.1");
+  await once(upstream, "listening");
+  const address = upstream.address();
+  const upstreamPort = typeof address === "object" && address ? address.port : 0;
+  const { child, ready } = startServer({
+    X_ACCESS_TOKEN: userToken,
+    X_APP_BEARER_TOKEN: appBearer,
+    X_API_BASE_URL: `http://127.0.0.1:${upstreamPort}`,
+  });
+  try {
+    const base = await ready;
+    const { status, frames } = await readStreamUntilChat(base);
+    assert.equal(status, 200, "EventSource never reads an error body, so the answer must be a frame");
+    const failure = frames.find((frame) => frame.includes('"state":"failed"'));
+    assert.ok(failure, frames.join(" | "));
+    assert.match(failure, /chat events are not enabled for this client/);
   } finally {
     if (child.exitCode === null) {
       const exited = once(child, "exit");

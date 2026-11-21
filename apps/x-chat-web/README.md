@@ -20,8 +20,9 @@ and the single list of what the prototype does not do is
    never sent to browser JavaScript. A static `X_ACCESS_TOKEN` in the local
    shell environment still works and takes precedence. Real-time events also
    need the app's **App-only Bearer Token** in `X_APP_BEARER_TOKEN` (or the
-   hidden prompt in `npm run start:live`): X rejects OAuth 2.0 user context on
-   `/2/activity/stream`. The documented baseline
+   hidden prompt in `npm run start:live`): X wants the user context for
+   `chat.*` subscriptions but rejects it on `/2/activity/stream`, which only
+   accepts the app Bearer. The documented baseline
    scopes are `dm.read`, `dm.write`, `tweet.read`, and `users.read`; image
    upload additionally needs `media.write`. Confirm the exact scopes against
    the operations enabled for the X Developer app, and follow

@@ -265,6 +265,7 @@ summary:focus-visible {
 }
 
 #live-stream[data-state="auth-required"],
+#live-stream[data-state="failed"],
 #live-stream[data-state="stopped"] {
   color: #ee9299;
 }
