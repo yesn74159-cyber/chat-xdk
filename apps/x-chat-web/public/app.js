@@ -1470,6 +1470,13 @@ function render(entry) {
         button.replaceWith(image);
       } catch (error) {
         activity(error.message);
+        let note = card.querySelector(".image-error");
+        if (!note) {
+          note = document.createElement("p");
+          note.className = "image-error";
+          card.append(note);
+        }
+        note.textContent = `เปิดไฟล์ไม่สำเร็จ: ${error.message}`;
         button.disabled = false;
       }
     });

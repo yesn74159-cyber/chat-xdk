@@ -629,8 +629,13 @@ async function api(req, res, url) {
       res.end(bytes);
       return;
     }
-    const response = await xRequest(`/2/chat/media/${id}/${hash}`);
-    return streamBoundedMedia(response, res, MAX_X_MEDIA_RESPONSE_BYTES);
+    try {
+      const response = await xRequest(`/2/chat/media/${id}/${hash}`);
+      return streamBoundedMedia(response, res, MAX_X_MEDIA_RESPONSE_BYTES);
+    } catch (error) {
+      if (error?.status) console.error(`media download failed: HTTP ${error.status}`);
+      throw error;
+    }
   }
   json(res, 404, { error: "Unknown API route" });
 }
