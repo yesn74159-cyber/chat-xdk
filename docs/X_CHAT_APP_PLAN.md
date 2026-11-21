@@ -15,7 +15,7 @@
 - [ ] เพิ่ม inbox persistence, pagination และ real-time events
 - [ ] เพิ่มกลุ่ม, team workflow และ automation ตามลำดับเฟส
 
-ลำดับดำเนินงานถัดไป: (1) push และยืนยัน CI จริง (2) เก็บงานเทคนิคที่ไม่ต้องใช้บัญชีในหัวข้อ Blocked ข้อ 3 (3) เตรียม OAuth/X Developer app และบัญชีทดสอบ A/B เพื่อเริ่ม `LIVE_PASS`.
+ลำดับดำเนินงานถัดไป: (1) push และยืนยัน CI จริง — ปิดแล้ว 2026-11-21 (run 44896650947) (2) เก็บงานเทคนิคที่ไม่ต้องใช้บัญชีในหัวข้อ Blocked ข้อ 3 (3) เตรียม OAuth/X Developer app และบัญชีทดสอบ A/B เพื่อเริ่ม `LIVE_PASS`.
 
 ## Master checklist — ตั้งแต่ต้นแบบจนจบโครงการ
 
@@ -68,7 +68,7 @@
 - [x] ทดสอบ signature/key/media ผิดว่า SDK ไม่ decrypt/คืน plaintext; UI render เฉพาะ `verified === true`
 - [x] เก็บ fixtures แบบไม่มี secret และใช้ SDK จริง ไม่ mock crypto
 - [x] เพิ่ม `npm run test:mock` และ CI job สำหรับ offline/mock gate
-- [ ] ยืนยันผล CI หลัง commit/push ว่า offline/mock gate ผ่านบน runner ใหม่ (blocked: repo ยังไม่ push)
+- [x] (2026-11-21) ยืนยันผล CI หลัง push: run 44896650947 เขียวครบ 8 jobs รวม x-chat web mock gate Node 20/22 (audit, secret guard, check, offline/mock tests, browser smoke, SBOM) บน ubuntu runner; run แรก 44895816818 พบ flake ขนาด timeout test บน Node 22 (`AbortSignal.timeout` เป็น timer แบบ unref) แก้ที่ commit 72aa4d3 แล้ว rerun ผ่าน
 
 ### P2 — ปิด STATIC_PASS และคุณภาพโค้ด
 
@@ -318,9 +318,9 @@
 
 ## สิ่งที่ยังติด (Blocked) — ต้องมีคน/บัญชี/การอนุมัติจากเจ้าของ
 
-1. **ต้องมีบัญชีและสิทธิ์จริง:** P3 ทั้งหมด, P6 LIVE, และการยืนยัน CI บน runner
-   (P1) — ต้อง push repo, มี X Developer app ที่ได้ scope, และบัญชีทดสอบ A/B
-   ที่ยินยอมทั้งสองฝ่าย
+1. **ต้องมีบัญชีและสิทธิ์จริง:** P3 ทั้งหมด, P6 LIVE — ต้องมี X Developer app
+   ที่ได้ scope และบัญชีทดสอบ A/B ที่ยินยอมทั้งสองฝ่าย (การยืนยัน CI บน runner
+   ปิดแล้ว 2026-11-21 ด้วย run 44896650947)
 2. **ต้องตัดสินใจระดับองค์กร:** เจ้าของ product/security (P0), use case ที่
    อนุญาต, รูปแบบผลิตภัณฑ์หลัง MVP, license/ช่องทางรายงานช่องโหว่, เลือก
    activity stream หรือ webhook (P5), โมเดลทีม (P7), นโยบาย automation (P8),
