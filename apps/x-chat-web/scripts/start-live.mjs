@@ -60,9 +60,17 @@ if (dryRun) {
   process.exit(0);
 }
 
-const build = spawnSync(npmCommand, ["run", "build"], { cwd: appRoot, stdio: "inherit", env: process.env });
-if (build.status !== 0) {
-  console.error("start:live: build ไม่สำเร็จ");
+// Node refuses to spawn .cmd wrappers on Windows without a shell (EINVAL), so
+// pass one command string instead of an argv array to avoid DEP0190.
+const build = spawnSync(`${npmCommand} run build`, {
+  cwd: appRoot,
+  stdio: "inherit",
+  env: process.env,
+  shell: true,
+});
+if (build.error || build.status !== 0) {
+  if (build.error) console.error(`start:live: build ไม่สำเร็จ — ${build.error.message}`);
+  else console.error("start:live: build ไม่สำเร็จ");
   process.exit(build.status ?? 1);
 }
 
