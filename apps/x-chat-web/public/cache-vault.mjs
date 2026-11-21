@@ -89,6 +89,16 @@ export async function decryptCacheDocument(envelope, passphrase) {
   }
 }
 
+/** Accept only the ciphertext envelope shape produced by encryptCacheDocument. */
+export function validateCacheEnvelope(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Invalid encrypted cache");
+  if (value.version !== CACHE_VERSION) throw new Error("Unsupported encrypted cache version");
+  for (const field of ["salt", "iv", "ciphertext"]) {
+    if (typeof value[field] !== "string" || !value[field]) throw new Error("Invalid encrypted cache");
+  }
+  return value;
+}
+
 export function cacheDocument({ conversations = [], events = {}, deliveryIds = [], audits = [] } = {}) {
   return {
     conversations,

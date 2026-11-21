@@ -51,6 +51,8 @@ function securityHeaders() {
 }
 const routeMethods = {
   "/api/status": ["GET"],
+  "/api/health": ["GET"],
+  "/api/metrics": ["GET"],
   "/api/me": ["GET"],
   "/api/public-keys": ["GET"],
   "/api/contacts/lookup": ["GET"],
@@ -79,6 +81,8 @@ const { mock, mockFixture, mockJson } = createMockStore(
   mode === "mock" && process.env.X_CHAT_MOCK_FIXTURE ? JSON.parse(process.env.X_CHAT_MOCK_FIXTURE) : {},
 );
 const liveCreatePermit = createLiveCreatePermit();
+const startedAt = Date.now();
+const metrics = { requests: 0, responses: new Map(), serverErrors: 0 };
 
 function json(res, status, body, headers = {}) {
   res.writeHead(status, {
@@ -268,6 +272,27 @@ async function api(req, res, url) {
         () => true,
         () => false,
       ),
+    });
+  }
+  if (path === "/api/health" && req.method === "GET") {
+    const sdkInstalled = await stat(sdkDir).then(
+      () => true,
+      () => false,
+    );
+    return json(res, 200, {
+      status: sdkInstalled ? "ok" : "degraded",
+      uptimeSeconds: Math.floor((Date.now() - startedAt) / 1000),
+      mode,
+      tokenConfigured: Boolean(token),
+      sdkInstalled,
+    });
+  }
+  if (path === "/api/metrics" && req.method === "GET") {
+    return json(res, 200, {
+      uptimeSeconds: Math.floor((Date.now() - startedAt) / 1000),
+      requests: metrics.requests,
+      responses: Object.fromEntries([...metrics.responses].sort()),
+      serverErrors: metrics.serverErrors,
     });
   }
   if (
@@ -574,6 +599,12 @@ async function serve(res, baseDir, relative) {
 }
 
 const server = createServer(async (req, res) => {
+  metrics.requests += 1;
+  res.on("finish", () => {
+    const bucket = `${Math.floor(res.statusCode / 100)}xx`;
+    metrics.responses.set(bucket, (metrics.responses.get(bucket) || 0) + 1);
+    if (res.statusCode >= 500) metrics.serverErrors += 1;
+  });
   try {
     const url = new URL(req.url, "http://127.0.0.1");
     if (url.pathname.startsWith("/api/")) return await api(req, res, url);

@@ -484,6 +484,25 @@ before(() => {
   };
 });
 
+test("health and metrics are redacted and count requests without paths", async () => {
+  const { response, body: health } = await request("/api/health");
+  assert.equal(response.status, 200);
+  assert.deepEqual(Object.keys(health).sort(), ["mode", "sdkInstalled", "status", "tokenConfigured", "uptimeSeconds"]);
+  assert.equal(health.status, "ok");
+  assert.equal(health.mode, "mock");
+  assert.equal(health.tokenConfigured, false);
+  assert.equal(health.sdkInstalled, true);
+  assert.equal(Number.isInteger(health.uptimeSeconds), true);
+
+  const { body: metrics } = await request("/api/metrics");
+  assert.deepEqual(Object.keys(metrics).sort(), ["requests", "responses", "serverErrors", "uptimeSeconds"]);
+  assert.equal(Number.isInteger(metrics.requests), true);
+  assert.ok(metrics.requests >= 2);
+  assert.ok(metrics.responses["2xx"] >= 1);
+  assert.equal(metrics.serverErrors, 0);
+  assert.doesNotMatch(JSON.stringify(metrics), /conversation|token|user|api/i);
+});
+
 test("mock adapter loads keys, then sends, returns history, and preserves a real encrypted image", async () => {
   const { body: status } = await request("/api/status");
   assert.deepEqual(status, {
@@ -588,6 +607,11 @@ test("mock adapter loads keys, then sends, returns history, and preserves a real
   );
   assert.equal(nextHistory.data.length, 1);
   assert.equal(nextHistory.meta.next_token, undefined);
+  const { body: beyondEndHistory } = await request(
+    `/api/events?conversation_id=${encodeURIComponent(vectors.event_conversation_id)}&pagination_token=999`,
+  );
+  assert.deepEqual(beyondEndHistory.data, []);
+  assert.equal(beyondEndHistory.meta.next_token, undefined);
   const secondPage = historyChat.decryptEvents({
     events: [...nextHistory.meta.conversationKeyEvents, ...nextHistory.data.map((event) => event.encoded_event)],
   });
@@ -1030,6 +1054,65 @@ test("mock group member changes rotate key material and reject a stale roster", 
     groupMembersRemoveRequest(removed, ["2222"], added.conversationKeyVersion),
   );
   assert.deepEqual(removedResponse.body.data.member_ids.sort(), [vectors.event_sender_id, "3333"].sort());
+
+  const currentVersion = removed.conversationKeyVersion;
+  const action = (id) => ({
+    message_id: id,
+    encoded_message_event_detail: "encoded",
+    message_event_signature: {
+      signature: "sig",
+      signature_version: "1",
+      public_key_version: "1",
+      signing_public_key: "spki",
+    },
+  });
+  const rotation = (participantIds) => ({
+    conversation_key_version: "999",
+    conversation_participant_keys: participantIds.map((userId) => ({
+      user_id: userId,
+      encrypted_conversation_key: "wrapped",
+      public_key_version: "1",
+    })),
+  });
+  const addBody = (userIds, participantIds) => ({
+    conversation_id: conversationId,
+    expected_key_version: currentVersion,
+    user_ids: userIds,
+    ...rotation(participantIds),
+    action_signatures: [action("a"), action("b")],
+  });
+  const removeBody = (userIds, participantIds) => ({
+    conversation_id: conversationId,
+    expected_key_version: currentVersion,
+    user_ids: userIds,
+    group_key_rotation_data: rotation(participantIds),
+    action_signatures: [action("a")],
+  });
+
+  const addExisting = await post("/api/group/members/add", addBody(["3333"], [vectors.event_sender_id, "3333"]));
+  assert.equal(addExisting.response.status, 400);
+  assert.equal(addExisting.body.error, "Invalid group member add");
+  const addWithoutKey = await post(
+    "/api/group/members/add",
+    addBody(["4444"], [vectors.event_sender_id, "3333", "4444"]),
+  );
+  assert.equal(addWithoutKey.response.status, 400);
+  assert.equal(addWithoutKey.body.error, "Invalid group member add");
+  const removeSelf = await post("/api/group/members/remove", removeBody([vectors.event_sender_id], ["3333"]));
+  assert.equal(removeSelf.response.status, 400);
+  assert.equal(removeSelf.body.error, "Invalid group member removal");
+  const removeNonMember = await post("/api/group/members/remove", removeBody(["2222"], ["3333"]));
+  assert.equal(removeNonMember.response.status, 400);
+  assert.equal(removeNonMember.body.error, "Invalid group member removal");
+  const rotationMismatch = await post("/api/group/members/add", addBody(["3334"], [vectors.event_sender_id, "3333"]));
+  assert.equal(rotationMismatch.response.status, 400);
+  assert.equal(rotationMismatch.body.error, "Group rotation roster mismatch");
+
+  const { body: rosterAfter } = await request(
+    `/api/group/roster?conversation_id=${encodeURIComponent(conversationId)}`,
+  );
+  assert.deepEqual(rosterAfter.data.memberIds.sort(), [vectors.event_sender_id, "3333"].sort());
+  assert.equal(rosterAfter.data.keyVersion, currentVersion);
 });
 
 test("mock-only identity registration accepts generated public keys without receiving private key material", async () => {

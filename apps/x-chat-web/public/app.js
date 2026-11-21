@@ -260,7 +260,13 @@ import { groupCreateRequest, groupMemberIds } from "/group-create.mjs";
 import { groupMembersAddRequest, groupMembersRemoveRequest } from "/group-members.mjs";
 import { createGateway } from "/gateway.mjs";
 import { lookupContactsWithLimit, parseContactUsernames } from "/multi-contact-lookup.mjs";
-import { cacheDocument, createCacheStore, decryptCacheDocument, encryptCacheDocument } from "/cache-vault.mjs";
+import {
+  cacheDocument,
+  createCacheStore,
+  decryptCacheDocument,
+  encryptCacheDocument,
+  validateCacheEnvelope,
+} from "/cache-vault.mjs";
 import { createCacheSync } from "/cache-sync.mjs";
 import { approveDraft, createDraft, discardDraft, toDraftAudit } from "/draft-queue.mjs";
 import { realmTokensFromConfig, unlockExistingIdentity } from "/pin-unlock.mjs";
@@ -271,6 +277,7 @@ import {
   httpFailureCategory,
   httpStatusFromError,
 } from "/history-diagnostics.mjs";
+import { signingKeyRecords } from "/signing-key-records.mjs";
 
 const el = (id) => document.getElementById(id);
 const cacheSync = createCacheSync();
@@ -282,6 +289,7 @@ const state = {
   keyVersion: "",
   keys: {},
   signingKeys: new Map(),
+  missingSigningKeys: new Set(),
   shown: new Set(),
   shownUnverifiedEvents: new Set(),
   knownUnsignedEvents: new Set(),
@@ -996,6 +1004,7 @@ function clearUnlockedIdentity() {
   state.chat = null;
   state.keyVersion = "";
   state.signingKeys.clear();
+  state.missingSigningKeys.clear();
   for (const key of Object.values(state.keys)) key?.fill(0);
   state.keys = {};
   state.activeConversationKey?.fill(0);
@@ -1353,8 +1362,10 @@ async function exportCache() {
 
 async function importCache(file) {
   if (!file) return;
-  const envelope = JSON.parse(await file.text());
-  if (!envelope || envelope.version !== 1 || typeof envelope.ciphertext !== "string") {
+  let envelope;
+  try {
+    envelope = validateCacheEnvelope(JSON.parse(await file.text()));
+  } catch {
     throw new Error("ไฟล์ cache ไม่ใช่รูปแบบที่รองรับ");
   }
   state.cacheStore ??= createCacheStore();
@@ -1500,17 +1511,12 @@ async function signingKeysFor(events) {
     if (state.signingKeys.has(id)) continue;
     const response = await api(`/api/public-keys?user_id=${encodeURIComponent(id)}`);
     if (Array.isArray(response?.errors)) apiErrors.push(...response.errors);
-    const records = getData(response);
-    state.signingKeys.set(
-      id,
-      (Array.isArray(records) ? records : [records]).map((key) => ({
-        userId: id,
-        publicKeyVersion: String(key.publicKeyVersion ?? key.public_key_version ?? ""),
-        publicKey: key.signingPublicKey ?? key.signing_public_key ?? "",
-        identityPublicKey: key.publicKey ?? key.public_key ?? "",
-        identityPublicKeySignature: key.identityPublicKeySignature ?? key.identity_public_key_signature ?? "",
-      })),
-    );
+    const records = signingKeyRecords(id, response);
+    if (!records.length) {
+      state.missingSigningKeys.add(id);
+      continue;
+    }
+    state.signingKeys.set(id, records);
   }
   state.chat.setSigningKeys([...state.signingKeys.values()].flat());
   return apiErrors;
@@ -1671,6 +1677,7 @@ async function refresh(pageToken = null) {
     if (pageToken !== null) params.set("pagination_token", pageToken);
     const response = await api(`/api/events?${params}`);
     if (pageToken !== null) state.seenPageTokens.add(pageToken);
+    if (pageToken === null) state.missingSigningKeys.clear();
     const events = response.data ?? [];
     const signingKeyApiErrors = await signingKeysFor(events);
     const signingKeys = [...state.signingKeys.values()].flat();
@@ -1753,7 +1760,10 @@ async function refresh(pageToken = null) {
     ].slice(-1000);
     const next = response.meta?.next_token ?? response.meta?.nextToken ?? null;
     state.nextPageToken = typeof next === "string" && next && !state.seenPageTokens.has(next) ? next : null;
-    activity(formatHistoryDiagnostics(diagnostics));
+    const missingSignerNote = state.missingSigningKeys.size
+      ? ` | ไม่พบ public key ของผู้ส่ง/ผู้ดูแล ${state.missingSigningKeys.size} บัญชี (อาจถูกลบหรือไม่เคยเผยแพร่ key) — ข้อความและการเปลี่ยนรายชื่อที่ลงนามด้วย key นั้นถูกซ่อน`
+      : "";
+    activity(`${formatHistoryDiagnostics(diagnostics)}${missingSignerNote}`);
     await saveCache();
     if (state.mode === "mock" && pageToken === null && result.events.length) {
       await gateway.markRead(state.conversationId).catch(() => {});
@@ -2239,6 +2249,7 @@ async function openConversation(selectedConversation, initialKey = null) {
     state.currentConversation = selectedConversation;
     state.shown.clear();
     state.shownUnverifiedEvents.clear();
+    state.missingSigningKeys.clear();
     state.keys = initialKey ? { [initialKey.keyVersion]: initialKey.key } : {};
     state.activeConversationKey = initialKey?.key ?? null;
     state.activeConversationKeyVersion = initialKey?.keyVersion ?? "";
@@ -2339,6 +2350,7 @@ el("create-group").addEventListener("click", async () => {
     updateChatHeader();
     state.shown.clear();
     state.shownUnverifiedEvents.clear();
+    state.missingSigningKeys.clear();
     state.nextPageToken = null;
     state.seenPageTokens.clear();
     el("messages").replaceChildren();
