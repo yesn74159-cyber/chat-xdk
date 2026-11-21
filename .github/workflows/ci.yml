@@ -47,6 +47,11 @@ jobs:
       - name: Test offline and mock flows
         run: npm test
 
+      - name: Browser smoke (installed Chrome/Edge)
+        run: npm run test:browser
+        env:
+          X_CHAT_BROWSER_REQUIRED: "1"
+
       - name: Create production dependency SBOM
         run: npm sbom --sbom-format cyclonedx --omit=dev > x-chat-web-sbom.cdx.json
 

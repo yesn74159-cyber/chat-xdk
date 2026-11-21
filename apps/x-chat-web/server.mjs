@@ -598,6 +598,12 @@ async function serve(res, baseDir, relative) {
   }
 }
 
+function loopbackHost(hostHeader) {
+  if (!hostHeader) return true;
+  const value = hostHeader.toLowerCase();
+  return value === `127.0.0.1:${port}` || value === `localhost:${port}`;
+}
+
 const server = createServer(async (req, res) => {
   metrics.requests += 1;
   res.on("finish", () => {
@@ -606,6 +612,7 @@ const server = createServer(async (req, res) => {
     if (res.statusCode >= 500) metrics.serverErrors += 1;
   });
   try {
+    if (!loopbackHost(req.headers.host)) return json(res, 403, { error: "Unexpected Host header" });
     const url = new URL(req.url, "http://127.0.0.1");
     if (url.pathname.startsWith("/api/")) return await api(req, res, url);
     const file = url.pathname === "/" ? "index.html" : url.pathname.slice(1);

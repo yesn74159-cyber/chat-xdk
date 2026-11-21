@@ -89,7 +89,10 @@
 - [x] ตรวจว่า retry ไม่สร้าง message ID ใหม่ และไม่ retry การกระทำที่ไม่ idempotent อย่างไร้ขอบเขต
 - [x] เพิ่ม dependency audit/lockfile review และ SBOM ตามช่องทาง release ที่เลือก
 - [x] เพิ่ม production dependency audit ใน CI; audit ปัจจุบันไม่พบ high vulnerabilities
-- [ ] ทำ code review ด้าน security/privacy และแก้ทุก finding ระดับ release blocker
+- [x] ทำ code review ด้าน security/privacy และแก้ทุก finding ระดับ release blocker
+      (`docs/SECURITY_REVIEW.md`: 12 หัวข้อ, ไม่มี blocker สำหรับ Mock slice;
+      แก้ระหว่างรีวิวคือ loopback `Host` allowlist กัน DNS rebinding และจำกัด
+      ไฟล์ import cache 20 MiB; `npm audit` 0 vulnerabilities ทั้ง prod/dev)
 - [ ] ตรวจ accessibility: keyboard, focus, label, contrast, live status และ error announcement
       (ทำแล้ว: label/modals/focus restore/live status/error announcement, contrast
       45 คู่ผ่าน WCAG AA ด้วย `npm run check:contrast` และ reduced-motion — ดู

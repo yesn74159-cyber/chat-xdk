@@ -16,6 +16,9 @@ substitutes for a live X API result.
 - [x] Mock pagination, duplicate/out-of-order delivery simulation, offline/reconnect and unread read-state.
 - [x] Encrypted IndexedDB envelope rejects plaintext/private-key/token/passphrase/PIN fields; export, clear and restore round-trip in a real browser without losing the imported envelope.
 - [x] Draft is manually approved; no auto-send, background delivery or broadcast route exists.
+- [x] Release security/privacy review with no open Mock-slice blockers (see
+      `SECURITY_REVIEW.md`); loopback `Host` allowlist and a 20 MiB cache-import
+      cap were added during the review.
 
 ## Deliberately not yet release proof
 
@@ -26,6 +29,8 @@ substitutes for a live X API result.
 - [ ] Live OAuth, scopes/credits, consented X test accounts and text/URL/image/group results.
 - [ ] Live real-time delivery/reconnect and live roster admin/title operations.
 - [ ] Hosted/team backend, multi-account permissions, durable secure key backup or auto-send.
+- [ ] Rate limiting and penetration testing; the Mock slice is loopback-only and
+      has no rate limiter by design.
 
 `LIVE_PASS` remains **NOT_VERIFIED** until the separate live preflight and
 redacted two-account evidence are complete.

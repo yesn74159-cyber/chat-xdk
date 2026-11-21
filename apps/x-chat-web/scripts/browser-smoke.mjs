@@ -47,6 +47,10 @@ function findBrowser() {
 
 const browserPath = findBrowser();
 if (!browserPath) {
+  if (process.env.X_CHAT_BROWSER_REQUIRED === "1") {
+    console.error("browser-smoke: FAIL — no Chrome/Edge found (set X_CHAT_BROWSER_PATH)");
+    process.exit(1);
+  }
   console.log("browser-smoke: SKIP — no Chrome/Edge found (set X_CHAT_BROWSER_PATH to run)");
   process.exit(0);
 }
@@ -231,6 +235,16 @@ try {
 
     const scratch = await mkdtemp(join(tmpdir(), "x-chat-smoke-"));
     try {
+      const oversized = join(scratch, "oversized.json");
+      await writeFile(oversized, Buffer.alloc(20 * 1024 * 1024 + 1, 0x20));
+      await page.setInputFiles("#import-cache", oversized);
+      await page.waitForFunction(
+        () => document.querySelector("#activity")?.textContent?.includes("ใหญ่เกินขีดจำกัด"),
+        null,
+        { timeout: 10000 },
+      );
+      assert.deepEqual(await readStoredEnvelope(page), exported);
+
       const rejected = join(scratch, "rejected.json");
       await writeFile(rejected, JSON.stringify({ version: 1, salt: "", iv: "aXY=", ciphertext: "Y3Q=" }));
       await page.setInputFiles("#import-cache", rejected);
@@ -287,7 +301,9 @@ try {
     await page.waitForFunction(
       () => document.querySelector("#activity")?.textContent?.includes("สร้างกลุ่มแล้ว"),
       null,
-      { timeout: 30000 },
+      {
+        timeout: 30000,
+      },
     );
     const groupItem = page.locator('#conversation-list .conversation-item[data-kind="group"]');
     await groupItem.first().waitFor({ state: "visible", timeout: 20000 });

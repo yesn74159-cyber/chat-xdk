@@ -1234,6 +1234,22 @@ test("mock conversations expose unread state and delivery queue simulates offlin
 });
 
 test("mock adapter enforces local request, validation, body-size, and route errors", async () => {
+  const rejectedHost = await new Promise((resolve, reject) => {
+    const probe = httpRequest(
+      { hostname: "127.0.0.1", port: new URL(baseUrl).port, path: "/api/status", headers: { host: "evil.example" } },
+      (incoming) => {
+        let body = "";
+        incoming.setEncoding("utf8");
+        incoming.on("data", (chunk) => (body += chunk));
+        incoming.on("end", () => resolve({ status: incoming.statusCode, body: JSON.parse(body) }));
+      },
+    );
+    probe.once("error", reject);
+    probe.end();
+  });
+  assert.equal(rejectedHost.status, 403);
+  assert.equal(rejectedHost.body.error, "Unexpected Host header");
+
   const noHeader = await request("/api/send", {
     method: "POST",
     headers: { "content-type": "application/json" },

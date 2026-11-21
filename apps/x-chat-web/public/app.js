@@ -281,6 +281,7 @@ import { signingKeyRecords } from "/signing-key-records.mjs";
 
 const el = (id) => document.getElementById(id);
 const cacheSync = createCacheSync();
+const MAX_CACHE_IMPORT_BYTES = 20 * 1024 * 1024;
 const state = {
   chat: null,
   myId: "",
@@ -1362,6 +1363,7 @@ async function exportCache() {
 
 async function importCache(file) {
   if (!file) return;
+  if (file.size > MAX_CACHE_IMPORT_BYTES) throw new Error("ไฟล์ cache ใหญ่เกินขีดจำกัด");
   let envelope;
   try {
     envelope = validateCacheEnvelope(JSON.parse(await file.text()));
