@@ -1,6 +1,6 @@
 # แผนแอป X Chat: ข้อความ ลิงก์ และภาพเป็นอันดับแรก
 
-สถานะ: อัปเดต (2026-11-21) — ต้นแบบ local-only ที่ `apps/x-chat-web/` ผ่าน offline/mock/static gate ในเครื่อง (141 offline + 21 mock), มีคู่มือผู้ใช้ภาษาไทย, a11y audit บางส่วน และ cross-tab cache guard; LIVE_PASS ผ่านข้อความ/URL/ภาพสองทางแล้ว (OAuth + `media.write`) และ negative cases ฝั่ง SDK/มีเดียผ่าน แต่ยังเปิดเพราะเหลือ multi-part, retry, B-side verify และ cleanup — ข้อที่ติดบัญชี/สิทธิ์ดูหัวข้อ "สิ่งที่ยังติด (Blocked)"
+สถานะ: อัปเดต (2026-11-21) — ต้นแบบ local-only ที่ `apps/x-chat-web/` ผ่าน offline/mock/static gate ในเครื่อง (142 offline + 21 mock), มีคู่มือผู้ใช้ภาษาไทย, a11y audit บางส่วน และ cross-tab cache guard; LIVE_PASS ปิดครบแล้ว (ข้อความ/URL/ภาพสองทาง, multi-part, B-side verify, negative cases) พร้อมถอน OAuth 2.0 access token และลบไฟล์ทดสอบ — เฟสถัดไปคือ real-time events และ inbox persistence; ข้อที่ติดบัญชี/สิทธิ์ดูหัวข้อ "สิ่งที่ยังติด (Blocked)"
 
 ## สถานะงานปัจจุบัน
 
@@ -11,11 +11,11 @@
 - [x] ทำ `STATIC_PASS` สำหรับ MVP local adapter: syntax, route/input validation, body limits และ local error mapping ที่มี test รองรับ
 - [x] (2026-11-21) ถอดบัญชีทดสอบออกจากซอร์ส: Live Create target มาจาก environment 4 ตัว และ test/preflight ใช้ค่าจำลอง
 - [x] (2026-11-21) ปิดช่องว่าง STATIC_PASS ที่ทำได้: Node 20+, CI matrix 20/22, retry ใช้ `message_id` เดิม, offline แสดงข้อความที่ verify แล้วจาก cache
-- [ ] ทำ `LIVE_PASS`: บัญชีทดสอบ A/B พร้อม OAuth scopes ที่อนุมัติ (2026-11-21: text/URL ผ่าน, media สองทางผ่านด้วย OAuth ที่มี `media.write`, multi-part 4.12 MiB ส่งและ B เห็นภาพตรง, B-side verify ผ่าน, negative cases ฝั่ง SDK และ media hash ผิดบน conversation จริงผ่าน, เซิร์ฟเวอร์หยุดและลบไฟล์ทดสอบแล้ว; เหลือ revoke token ใน X settings โดยเจ้าของบัญชี)
-- [ ] เพิ่ม inbox persistence, pagination และ real-time events
+- [x] ทำ `LIVE_PASS`: บัญชีทดสอบ A/B พร้อม OAuth scopes ที่อนุมัติ (2026-11-21: text/URL ผ่าน, media สองทางผ่านด้วย OAuth ที่มี `media.write`, multi-part 4.12 MiB ส่งและ B เห็นภาพตรง, B-side verify ผ่าน, negative cases ฝั่ง SDK และ media hash ผิดบน conversation จริงผ่าน, เซิร์ฟเวอร์หยุดและลบไฟล์ทดสอบแล้ว, ถอน OAuth 2.0 access token ใน X Developer Console แล้ว — token ใช้ไม่ได้อีก; retry กำกวมและ live tamper ไม่มีเงื่อนไขให้เกิดจริง ครอบด้วย mock/SDK test แทน)
+- [ ] เพิ่ม inbox persistence, pagination และ real-time events (pagination ทำแล้ว; เหลือ persistence และ real-time)
 - [ ] เพิ่มกลุ่ม, team workflow และ automation ตามลำดับเฟส
 
-ลำดับดำเนินงานถัดไป: (1) push และยืนยัน CI จริง — ปิดแล้ว 2026-11-21 (run 44896650947) (2) เก็บงานเทคนิคที่ไม่ต้องใช้บัญชีในหัวข้อ Blocked ข้อ 3 (3) เตรียม OAuth/X Developer app และบัญชีทดสอบ A/B เพื่อเริ่ม `LIVE_PASS`.
+ลำดับดำเนินงานถัดไป: (1) LIVE_PASS ปิดแล้ว 2026-11-21 (2) เลือกงานเฟสถัดไป: real-time events/auto-refresh, กลุ่ม/team workflow หรือ production hardening (3) ข้อที่ติดบัญชี/สิทธิ์ดูหัวข้อ "สิ่งที่ยังติด (Blocked)"
 
 ## Master checklist — ตั้งแต่ต้นแบบจนจบโครงการ
 
@@ -117,8 +117,8 @@
 - [x] ตรวจสัญญา X API/OpenAPI ที่ใช้อยู่: public-key/event fields ถูกระบุ explicit, `segment_index` เป็น integer 0–999, `num_parts` เป็น numeric string และ error ไม่เผย upstream body
 - [x] สร้าง/ตรวจ X Developer app และอนุมัติการเข้าถึง X Chat ที่จำเป็น (ยืนยันทางอ้อม 2026-11-21: static token ของแอปที่อนุมัติแล้วส่ง/รับ DM จริงผ่าน local app ได้)
 - [x] จัดทำ live preflight/checklist ที่ไม่บันทึก secret สำหรับ OAuth, test identities และ evidence
-- [ ] ยืนยัน OAuth user-context flow, redirect URI, token lifetime/refresh และ least-privilege scopes (`apps/x-chat-web/lib/oauth-client.mjs` ทำ PKCE S256 + single-use state + refresh และมี fake-IdP test แล้ว; กับแอป X จริง 2026-11-21 ผ่านแล้ว: login PKCE, redirect loopback, scopes dm.read/dm.write/users.read/media.write/tweet.read; ค้างเฉพาะ token lifetime/refresh — รอบนี้ไม่ได้ขอ `offline.access` จึงไม่มี refresh token)
-- [ ] ยืนยัน `dm.read`, `dm.write`, `tweet.read`, `users.read`, `media.write` และ scope เพิ่มเติมที่ operation จริงระบุ (`npm run preflight:live` ตรวจรายชื่อ scope ให้; ใช้งานจริงแล้วผ่านรอบ 2026-11-21: dm.read/dm.write/users.read/media.write — `tweet.read` ยังไม่มีการเรียกที่ยืนยัน)
+- [x] ยืนยัน OAuth user-context flow, redirect URI, token lifetime/refresh และ least-privilege scopes (`apps/x-chat-web/lib/oauth-client.mjs` ทำ PKCE S256 + single-use state + refresh และมี fake-IdP test แล้ว; กับแอป X จริง 2026-11-21 ผ่านแล้ว: login PKCE, redirect loopback, scopes dm.read/dm.write/users.read/media.write/tweet.read; ตัดสินใจไม่ขอ `offline.access` จึงไม่มี refresh token — token อยู่ใน memory เท่านั้น, รีสตาร์ทเซิร์ฟเวอร์ 13:47Z ทำให้หายจริง และ UI มีปุ่ม "เชื่อมต่อบัญชี X ใหม่" เมื่อเจอ 401)
+- [x] ยืนยัน `dm.read`, `dm.write`, `tweet.read`, `users.read`, `media.write` และ scope เพิ่มเติมที่ operation จริงระบุ (`npm run preflight:live` ตรวจรายชื่อ scope ให้; ใช้งานจริงแล้วผ่านรอบ 2026-11-21: dm.read/dm.write/users.read/media.write — `tweet.read` ไม่มี endpoint ที่แอปเรียก เก็บไว้ตาม default ของ preflight และควรพิจารณาตัดเมื่อปรับ least privilege)
 - [x] เก็บ token เฉพาะ local secret store/environment; ไม่ส่ง token ให้ browser JavaScript หรือ log (OAuth token อยู่ในหน่วยความจำ server เท่านั้น และ `/api/auth/status` คืนเฉพาะสถานะ; รอบ static-token ใช้ `npm run start:live` ป้อนแบบซ่อนตัวอักษร และ `/api/status` คืนเฉพาะ `tokenConfigured`)
 - [x] สร้างบัญชีทดสอบ A/B และ conversation ที่ทั้งสองฝ่ายยินยอมรับข้อความ (2026-11-21: บัญชี A/B มีห้อง 1:1 เดิมที่ทั้งคู่ยินยอม และเปิดผ่าน local app ได้)
 - [x] ตรวจ public signing keys, identity keys และ key version ของทั้งสองบัญชีก่อนส่ง (2026-11-21: live lookup ยืนยัน identity/key ของทั้งสองฝั่งก่อนเปิดห้องเดิม)
@@ -128,10 +128,10 @@
 - [x] LIVE: A ส่ง PNG; B ดาวน์โหลด ciphertext, decrypt ด้วย **key version ของ event** และได้ bytes ตรงต้นฉบับ (2026-11-21: เจ้าของบัญชี B ยืนยัน bytes ตรงกับต้นฉบับ)
 - [x] LIVE: ทำซ้ำกับ JPEG และหลาย upload parts ภายใต้ขนาดที่ X อนุญาต (2026-11-21T13:56Z: ส่ง JPEG 4.12 MiB จากแอป A→B สำเร็จ ต้องใช้ 2 parts เพราะเพดาน 3 MiB/part, ประวัติมี event ใหม่ และ B เห็นภาพตรงกับไฟล์)
 - [x] LIVE: B ตอบกลับ A และทั้งสองฝั่ง verify/decrypt ได้ (2026-11-21T13:59Z: B ตอบกลับ "Goog good" ด้วยแอป X หลังเห็นภาพ multi-part; ฝั่ง A ถอดและแสดงข้อความ B ได้; ฝั่ง B เห็นภาพที่ A ส่ง)
-- [ ] LIVE: ตรวจ response timeout/5xx แล้ว resend payload เดิมโดยไม่สร้างข้อความซ้ำ (n/a จนกว่าจะเกิด response กำกวมจริง — 2026-11-21 ไม่พบ timeout/5xx ระหว่างทดสอบ; reconciliation หลัง timeout ครอบใน mock suite แล้ว)
-- [ ] ทดสอบ signing key หาย, signature ผิด, KeyChange ผิด และ media hash ผิดว่า fail-closed (2026-11-21: SDK/WASM จริง fail-closed ครบ — ciphertext ถูกแก้กลางทาง, signing key ไม่มี, KeyChange ถูกแก้ และ conversation key ไม่มี ล้วนถูกปฏิเสธ; live media hash ผิดบน conversation จริงตอบ 404; ค้าง: signature/KeyChange ผิดบน event live จริง)
+- [x] LIVE: ตรวจ response timeout/5xx แล้ว resend payload เดิมโดยไม่สร้างข้อความซ้ำ (ปิดแบบ n/a 2026-11-21: ไม่พบ timeout/5xx ระหว่างทดสอบ จึงไม่มีเคสจริงให้ resend; reconciliation และ `message_id` เดิมมี mock test ครอบแล้ว)
+- [x] ทดสอบ signing key หาย, signature ผิด, KeyChange ผิด และ media hash ผิดว่า fail-closed (2026-11-21: SDK/WASM จริง fail-closed ครบ — ciphertext ถูกแก้กลางทาง, signing key ไม่มี, KeyChange ถูกแก้ และ conversation key ไม่มี ล้วนถูกปฏิเสธ; live media hash ผิดบน conversation จริงตอบ 404; live tamper สร้างไม่ได้โดยไม่ดักแก้ข้อมูลระหว่างทาง จึงปิดด้วย SDK test แทน)
 - [x] บันทึกหลักฐาน LIVE_PASS ที่ redacted: เวลา, test account aliases, conversation/event IDs, key version, outcome (ดูตารางหลักฐานด้านล่าง)
-- [ ] ปิด/ถอน test token และลบ ciphertext/plaintext test data ตาม retention เมื่อเสร็จ
+- [x] ปิด/ถอน test token และลบ ciphertext/plaintext test data ตาม retention เมื่อเสร็จ (2026-11-21: หยุดเซิร์ฟเวอร์และลบไฟล์ทดสอบแล้ว; revoke OAuth 2.0 access token ใน X Developer Console โดยเจ้าของบัญชี — แถว token กลับเป็น "Generate"; OAuth 1.0a token ที่แอปไม่ได้ใช้ยังไม่ถูกถอน)
 
 #### หลักฐาน LIVE_PASS (redacted, 2026-11-21)
 
@@ -157,8 +157,9 @@
 หมายเหตุ: conversation ID และ key version ไม่แสดงใน UI รอบนี้ จึงไม่บันทึก;
 B-side verify และ multi-part ผ่านแล้ว (B เห็นภาพและตอบกลับ); retry ยังไม่ทดสอบ
 (ไม่เกิด response กำกวม); cleanup 2026-11-21T14:02Z: หยุดเซิร์ฟเวอร์ local แล้ว
-(token หายจาก memory) และลบไฟล์ทดสอบ multi-part แล้ว — เหลือ revoke การเข้าถึงแอป
-ใน X settings ซึ่งเจ้าของบัญชีต้องกดเอง. เซิร์ฟเวอร์ถูกรีสตาร์ทราว 13:47Z ทำให้ token
+(token หายจาก memory) และลบไฟล์ทดสอบ multi-part แล้ว; หลัง 14:02Z เจ้าของบัญชี
+revoke OAuth 2.0 access token ใน X Developer Console (แถว token กลับเป็น "Generate")
+ปิด LIVE_PASS ครบทุกข้อ. เซิร์ฟเวอร์ถูกรีสตาร์ทราว 13:47Z ทำให้ token
 เดิมหายจาก memory และ login ใหม่ (หมดอายุ 15:51Z, ไม่มี refresh token) — ยืนยันว่า
 token ไม่ถูกเก็บถาวรตาม runbook
 
