@@ -363,7 +363,7 @@ p {
 .search-box input::placeholder,
 input::placeholder,
 textarea::placeholder {
-  color: #6f7d8f;
+  color: #78889c;
   opacity: 1;
 }
 
@@ -415,7 +415,7 @@ textarea::placeholder {
 .list-empty {
   margin: auto;
   padding: 20px 10px;
-  color: #718094;
+  color: #8493a6;
   font-size: 12px;
   line-height: 1.5;
   text-align: center;
@@ -584,13 +584,13 @@ textarea {
 }
 
 .primary-button {
-  border-color: #2b67d1;
-  background: #2563eb;
+  border-color: #1c46c2;
+  background: #1d4ed8;
   color: white;
 }
 
 .primary-button:hover:not(:disabled) {
-  background: #3475f3;
+  background: #2563eb;
 }
 
 .secondary-button {
@@ -966,7 +966,7 @@ textarea {
 
 .encryption-note {
   flex: 0 0 auto;
-  color: #718197;
+  color: #8493a6;
   font-size: 9px;
 }
 
@@ -1649,5 +1649,16 @@ textarea {
 
   .settings-header {
     padding-inline: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

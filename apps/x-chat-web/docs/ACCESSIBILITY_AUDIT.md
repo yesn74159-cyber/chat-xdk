@@ -17,14 +17,19 @@ focus smoke test, not a full WCAG conformance review.
 | Keyboard paths                      | All actions are native `<button>`/`<input>`/`<summary>`/form submit; Escape closes the new-chat dialog unless a create is in progress (`cancel` handler)                                                                                    |
 | Errors are announced                | Send/unlock/cache errors write into live-region status elements in Thai                                                                                                                                                                     |
 | No console errors                   | Loading the built app in Mock mode produced no console messages                                                                                                                                                                             |
+| Text contrast                       | `npm run check:contrast` asserts 45 real foreground/background pairs from `public/style.css` at WCAG AA (4.5:1 small text, 3:1 large); it runs inside `npm run check`                                                                       |
+| Reduced motion                      | `@media (prefers-reduced-motion: reduce)` disables transitions, scroll behaviour, and animations                                                                                                                                            |
+| Focus indicator                     | `:focus-visible` outline (`2px solid #60a5fa`, offset 3px) on every interactive element; keyboard smoke test reached the settings dialog and filter chips                                                                                   |
 
 ## Not verified
 
-- **Contrast and visual focus indicators** — needs a rendered review of every
-  state (disabled, error, unread, dialogs) at the declared minimum viewport.
 - **Screen reader walkthrough** — needs NVDA or VoiceOver on a real run,
   including the send-state transitions and the image attachment flow.
-- **Zoom / reflow** at 200% and small viewports.
+- **Zoom / reflow** at 200% and small viewports. The layout has 900px/600px
+  breakpoints and a 320px `min-width`, but no automated reflow assertion yet.
+- **Rendered contrast of every transient state** — the static guard covers the
+  declared colour pairs; a visual pass over hover/disabled/error states is still
+  worthwhile when a real browser session is available.
 - **Browser matrix** — only Chrome was exercised; see the supported-browser
   note in the README. Firefox and Safari remain unsupported until tested.
 

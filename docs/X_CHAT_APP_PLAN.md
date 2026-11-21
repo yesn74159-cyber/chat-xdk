@@ -36,13 +36,13 @@
 - [ ] ระบุผู้ใช้เป้าหมาย, use case ที่อนุญาต และสิ่งที่ไม่อยู่ในขอบเขตของ MVP
 - [ ] ตัดสินใจรูปแบบผลิตภัณฑ์หลัง MVP: local app, desktop app หรือ hosted service
 - [x] เขียน threat model: browser, loopback server, token, private key, ciphertext,
-  X API, event delivery และ local storage
+      X API, event delivery และ local storage
 - [x] ระบุ data classification และ retention ของ plaintext, ciphertext, metadata,
-  logs, backups และไฟล์ชั่วคราวสำหรับ local prototype; hosted/team ต้อง review ใหม่
+      logs, backups และไฟล์ชั่วคราวสำหรับ local prototype; hosted/team ต้อง review ใหม่
 - [x] กำหนด incident path สำหรับ token รั่ว, key สูญหาย, signature ผิด และส่งผิดห้อง โดย fail-closed และเก็บหลักฐาน redacted
 - [x] กำหนดว่าห้าม commit/log/paste: access token, refresh token, PIN, raw private key,
-  key blob, plaintext และ ciphertext เต็มก้อน (DEVELOPER_ONBOARDING + README
-  Boundaries + secret guard ใน CI บังคับใช้จริง)
+      key blob, plaintext และ ciphertext เต็มก้อน (DEVELOPER_ONBOARDING + README
+      Boundaries + secret guard ใน CI บังคับใช้จริง)
 - [x] เพิ่ม secret guard ใน CI สำหรับ PEM, literal `X_ACCESS_TOKEN` และ common GitHub/Slack token prefix; `.gitignore` กัน local X Chat `.env` แล้ว
 - [x] เขียน developer onboarding ที่ใช้ process environment แบบ interactive เท่านั้น; ไม่ใช้ `.env` หรือ `setx`
 - [ ] เลือก license, ownership และช่องทางรายงานช่องโหว่ก่อน public release
@@ -63,7 +63,7 @@
 - [x] ทดสอบส่งซ้ำหลัง network ambiguity ว่าเก็บ `message_id` และ encrypted payload เดิม; permanent failure ไม่เปิด retry
 - [x] ทดสอบ pagination token, empty page, event ซ้ำ และลำดับ KeyChange ก่อน message ผ่าน mock history และ WASM decrypt จริง
 - [x] ทดสอบ invalid/missing content-type, origin, local header, route, identifier,
-  size, segment index และ malformed JSON
+      size, segment index และ malformed JSON
 - [x] ทดสอบ 401/403/404/409/429/5xx/timeout จาก adapter; error จะบอกเฉพาะ HTTP status และ retryability ไม่ส่ง body/token ต่อ
 - [x] ทดสอบ signature/key/media ผิดว่า SDK ไม่ decrypt/คืน plaintext; UI render เฉพาะ `verified === true`
 - [x] เก็บ fixtures แบบไม่มี secret และใช้ SDK จริง ไม่ mock crypto
@@ -76,6 +76,11 @@
 - [x] ทดสอบ route/input validation, body limit, local-origin guard, local error mapping และ static security headers ของ MVP adapter
 - [x] เพิ่ม Prettier formatter และ TypeScript `checkJs` type checking ที่บังคับใช้ใน `npm run check` / CI
 - [ ] แยก adapter, validation, state machine และ UI ให้ทดสอบได้โดยไม่ copy crypto logic
+      (ทำแล้ว: `server.mjs` แยกเป็น `lib/api-validation.mjs`, `lib/mock-store.mjs`,
+      `lib/direct-conversation-lookup.mjs` พร้อม unit tests
+      `test/api-validation.test.mjs` / `test/direct-conversation-lookup.test.mjs`;
+      state machine อยู่ใน `public/send-state.mjs`, `event-state.mjs`, `draft-queue.mjs`;
+      ยังเหลือ: UI wiring ยังรวมใน `public/app.js` ไฟล์เดียว)
 - [x] ตรวจทุก route ว่ากำหนด method, content type, request/body size, error response และ cache policy; method ผิดตอบ 405 พร้อม `Allow`
 - [x] จำกัด static files, ป้องกัน path traversal และยืนยัน MIME/`nosniff` headers ด้วย mock adapter test
 - [x] กำหนด CSP, clickjacking/referrer policy และ local origin policy สำหรับ MVP local app
@@ -86,10 +91,11 @@
 - [x] เพิ่ม production dependency audit ใน CI; audit ปัจจุบันไม่พบ high vulnerabilities
 - [ ] ทำ code review ด้าน security/privacy และแก้ทุก finding ระดับ release blocker
 - [ ] ตรวจ accessibility: keyboard, focus, label, contrast, live status และ error announcement
-  (ทำแล้ว: label/modals/focus restore/live status/error announcement — ดู
-  `apps/x-chat-web/docs/ACCESSIBILITY_AUDIT.md`; ยังขาด contrast, screen reader, zoom)
+      (ทำแล้ว: label/modals/focus restore/live status/error announcement, contrast
+      45 คู่ผ่าน WCAG AA ด้วย `npm run check:contrast` และ reduced-motion — ดู
+      `apps/x-chat-web/docs/ACCESSIBILITY_AUDIT.md`; ยังขาด screen reader และ zoom 200%)
 - [ ] ทดสอบ browser ที่จะรองรับและขนาดหน้าจอขั้นต่ำที่ประกาศ (ประกาศ baseline
-  Chrome/Edge ใน README แล้ว; ยังไม่มี browser matrix จริง)
+      Chrome/Edge ใน README แล้ว; ยังไม่มี browser matrix จริง)
 - [x] ทำให้ `STATIC_PASS` เป็น CI gate ที่บันทึกผลได้
 
 ### P3 — เตรียม X integration และ LIVE_PASS อย่างปลอดภัย
@@ -130,9 +136,9 @@
 - [ ] ทำ search/filter เฉพาะ scope ข้อมูลที่ถูกอนุญาต และกำหนด indexing/retention ของ plaintext
 - [ ] ทำ export/delete local data และทดสอบ restore โดยไม่ทำข้อมูลอื่นหาย
 - [ ] ทดสอบ restart, offline, corrupted cache, missing history page และ concurrent tabs
-  (ทำแล้ว: offline decrypt fallback, tampered/malformed cache envelope fail-closed
-  test, cross-tab `BroadcastChannel` guard + unit test; ยังขาด UI restart และ
-  missing-page scenario แบบ end-to-end)
+      (ทำแล้ว: offline decrypt fallback, tampered/malformed cache envelope fail-closed
+      test, cross-tab `BroadcastChannel` guard + unit test; ยังขาด UI restart และ
+      missing-page scenario แบบ end-to-end)
 
 ### P5 — Real-time delivery และความน่าเชื่อถือ
 
@@ -186,7 +192,7 @@
 ### P9 — Release readiness และเปิดใช้
 
 - [ ] กำหนด supported platforms/browsers, system requirements และ compatibility matrix
-  (ประกาศ Node 20+ และ Chrome/Edge baseline แล้ว; ยังไม่มี compatibility matrix ที่รันจริง)
+      (ประกาศ Node 20+ และ Chrome/Edge baseline แล้ว; ยังไม่มี compatibility matrix ที่รันจริง)
 - [ ] ทำ reproducible build, signed artifacts และ dependency/license/SBOM review
 - [ ] แยก dev/test/prod configuration และ secret stores; ไม่มี production secret ใน build artifact
 - [ ] ทำ environment setup, migration, backup/restore และ rollback runbook
@@ -209,7 +215,7 @@
 - [ ] ปิดช่องว่าง documented known limitations หรือสื่อสารให้ผู้ใช้รับทราบอย่างชัดเจน
 - [ ] จัดทำ final architecture, operations, security และ user documentation ที่ตรงกับระบบที่ deploy
 - [ ] โครงการถือว่า “สมบูรณ์” เมื่อ release scope ทุก phase ที่เลือกไว้ผ่าน, ไม่มี open release blocker,
-  เจ้าของรับมอบงานแล้ว และมีแผนดูแล/incident/upgrade หลังเปิดใช้
+      เจ้าของรับมอบงานแล้ว และมีแผนดูแล/incident/upgrade หลังเปิดใช้
 
 ## สิ่งที่ยังติด (Blocked) — ต้องมีคน/บัญชี/การอนุมัติจากเจ้าของ
 
