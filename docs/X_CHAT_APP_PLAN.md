@@ -69,6 +69,7 @@
 - [x] เก็บ fixtures แบบไม่มี secret และใช้ SDK จริง ไม่ mock crypto
 - [x] เพิ่ม `npm run test:mock` และ CI job สำหรับ offline/mock gate
 - [x] (2026-11-21) ยืนยันผล CI หลัง push: run 44896650947 เขียวครบ 8 jobs รวม x-chat web mock gate Node 20/22 (audit, secret guard, check, offline/mock tests, browser smoke, SBOM) บน ubuntu runner; run แรก 44895816818 พบ flake ขนาด timeout test บน Node 22 (`AbortSignal.timeout` เป็น timer แบบ unref) แก้ที่ commit 72aa4d3 แล้ว rerun ผ่าน
+- [x] (2026-11-21) ยืนยัน CI ของ LIVE_PASS kit + `start:live`: run 44899270312 เขียวครบ 8 jobs ที่ commit 5111627 (push `fcaf1ef..5111627` ไป `yesn74159-cyber/chat-xdk`); commit 5111627 แก้ launcher ให้ build ผ่านบน Windows (Node ไม่ยอม spawn `npm.cmd` โดยไม่มี shell) และแสดง error จริงเมื่อ build ล้ม
 
 ### P2 — ปิด STATIC_PASS และคุณภาพโค้ด
 
