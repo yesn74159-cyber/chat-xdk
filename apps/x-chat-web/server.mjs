@@ -5,6 +5,7 @@ import { createServer } from "node:http";
 import { resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { fetchX, MAX_X_MEDIA_RESPONSE_BYTES, readXJson, UpstreamError } from "./lib/upstream.mjs";
+import { createOAuthClient } from "./lib/oauth-client.mjs";
 import { conversationEventsPath } from "./lib/chat-events.mjs";
 import { juiceboxConfiguration } from "./lib/juicebox-config.mjs";
 import { mockUsernameAlias } from "./lib/mock-username.mjs";
@@ -33,9 +34,18 @@ const root = fileURLToPath(new URL(".", import.meta.url));
 const staticDir = resolve(root, "node_modules/.cache/x-chat-web");
 const sdkDir = resolve(root, "node_modules/@xdevplatform/chat-xdk");
 let port = Number(process.env.PORT || 8787);
-const token = process.env.X_ACCESS_TOKEN || "";
+const staticToken = process.env.X_ACCESS_TOKEN || "";
 const mode = process.env.X_CHAT_API_MODE || "live";
-const xBase = "https://api.x.com";
+const xBase = process.env.X_API_BASE_URL || "https://api.x.com";
+const oauthScopes = (process.env.X_OAUTH_SCOPES || "").trim();
+const oauth = createOAuthClient({
+  clientId: process.env.X_OAUTH_CLIENT_ID || "",
+  clientSecret: process.env.X_OAUTH_CLIENT_SECRET || "",
+  redirectUri: process.env.X_OAUTH_REDIRECT_URI || "",
+  ...(process.env.X_OAUTH_AUTHORIZE_URL ? { authorizeUrl: process.env.X_OAUTH_AUTHORIZE_URL } : {}),
+  ...(process.env.X_OAUTH_TOKEN_URL ? { tokenUrl: process.env.X_OAUTH_TOKEN_URL } : {}),
+  ...(oauthScopes ? { scopes: oauthScopes.split(/\s+/) } : {}),
+});
 const maxBody = 5 * 1024 * 1024;
 let juiceboxPolicyOrigins = [];
 
@@ -108,9 +118,15 @@ async function bodyJson(req) {
   return JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
 }
 
+async function currentAccessToken() {
+  if (staticToken) return staticToken;
+  return oauth.accessToken();
+}
+
 async function xRequest(path, options = {}) {
-  if (!token) throw new UpstreamError("X_ACCESS_TOKEN is not configured on this local server", { status: 503 });
-  return fetchX({ baseUrl: xBase, path, token, options });
+  const accessToken = await currentAccessToken();
+  if (!accessToken) throw new UpstreamError("X_ACCESS_TOKEN is not configured on this local server", { status: 503 });
+  return fetchX({ baseUrl: xBase, path, token: accessToken, options });
 }
 
 async function xJson(path, method = "GET", data) {
@@ -260,10 +276,11 @@ async function api(req, res, url) {
   if (path === "/api/status" && req.method === "GET") {
     return json(res, 200, {
       mode,
-      tokenConfigured: Boolean(token),
+      tokenConfigured: Boolean(staticToken) || oauth.hasToken(),
       liveCreateSimulationEnabled: mode === "mock" && mockFixture.liveCreateSimulationEnabled === true,
       ...(mode === "live"
         ? {
+            auth: oauth.status(),
             liveCreateTargetConfigured: liveCreatePermit.isTargetConfigured(),
             liveCreateOneShotAvailable: await liveCreatePermit.isEnabled(),
           }
@@ -283,7 +300,7 @@ async function api(req, res, url) {
       status: sdkInstalled ? "ok" : "degraded",
       uptimeSeconds: Math.floor((Date.now() - startedAt) / 1000),
       mode,
-      tokenConfigured: Boolean(token),
+      tokenConfigured: Boolean(staticToken) || oauth.hasToken(),
       sdkInstalled,
     });
   }
@@ -297,6 +314,44 @@ async function api(req, res, url) {
       memory: { rssMiB: Math.round(memory.rss / 1048576), heapUsedMiB: Math.round(memory.heapUsed / 1048576) },
     });
   }
+  if (path.startsWith("/api/auth/")) {
+    const authMethods = {
+      "/api/auth/status": ["GET"],
+      "/api/auth/login": ["GET"],
+      "/api/auth/callback": ["GET"],
+    }[path];
+    if (!authMethods) return json(res, 404, { error: "Unknown API route" });
+    if (!authMethods.includes(req.method || "")) {
+      return json(res, 405, { error: "Method not allowed" }, { allow: authMethods.join(", ") });
+    }
+    if (path === "/api/auth/status") {
+      return json(res, 200, { mode, enabled: mode === "live" && oauth.status().configured, ...oauth.status() });
+    }
+    if (mode === "mock") return json(res, 404, { error: "Unknown API route" });
+    if (!oauth.configured()) {
+      return json(res, 503, {
+        error: "OAuth client is not configured on this local server",
+      });
+    }
+    if (path === "/api/auth/login") {
+      res.writeHead(302, { ...securityHeaders(), location: oauth.authorizationUrl(), "cache-control": "no-store" });
+      return res.end();
+    }
+    await oauth.completeAuthorization({
+      code: url.searchParams.get("code"),
+      state: url.searchParams.get("state"),
+    });
+    res.writeHead(200, {
+      ...securityHeaders(),
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "no-store",
+    });
+    return res.end(
+      '<!doctype html><html lang="th"><meta charset="utf-8"><title>เชื่อมต่อบัญชีสำเร็จ</title>' +
+        "<p>เชื่อมต่อบัญชี X สำเร็จ ปิดหน้านี้แล้วกลับไปที่แอปได้เลย</p>" +
+        '<p><a href="/">กลับไปที่แอป</a></p></html>',
+    );
+  }
   if (
     req.method === "POST" &&
     (req.headers["x-chat-local"] !== "1" ||
@@ -307,7 +362,7 @@ async function api(req, res, url) {
   if (path === "/api/conversations/initialize" && req.method === "POST" && mode !== "mock") {
     return json(res, 200, await liveDirectCreateAdapter.initialize(await bodyJson(req)));
   }
-  if (mode !== "mock" && !token)
+  if (mode !== "mock" && !staticToken && !oauth.hasToken())
     return json(res, 503, { error: "X_ACCESS_TOKEN is not configured on this local server" });
   const allowedMethods = routeMethods[path];
   if (allowedMethods && !allowedMethods.includes(req.method || "")) {
@@ -639,5 +694,6 @@ server.listen(port, "127.0.0.1", () => {
   const address = server.address();
   const boundPort = typeof address === "object" && address ? address.port : port;
   port = boundPort;
+  oauth.withDefaultRedirect(`http://127.0.0.1:${boundPort}/api/auth/callback`);
   console.log(`X Chat local inbox: http://127.0.0.1:${boundPort}`);
 });
