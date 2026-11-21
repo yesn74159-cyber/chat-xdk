@@ -97,7 +97,8 @@ test("X request wrapper applies authorization, maps failures, and times out", as
       (error) =>
         error instanceof UpstreamError &&
         error.message === `X API returned HTTP ${status}` &&
-        error.retryable === retryable,
+        error.retryable === retryable &&
+        error.status === (status < 500 ? status : 502),
     );
   }
   await assert.rejects(

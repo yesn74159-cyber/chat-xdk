@@ -39,6 +39,7 @@ export async function fetchX({
     throw new UpstreamError(`X API returned HTTP ${response.status}`, {
       retryable:
         response.status === 408 || response.status === 425 || response.status === 429 || response.status >= 500,
+      status: response.status >= 400 && response.status < 500 ? response.status : 502,
     });
   }
   return response;
@@ -47,7 +48,7 @@ export async function fetchX({
 export async function readBoundedBytes(response, maxBytes) {
   const contentLength = Number(response.headers.get("content-length"));
   if (Number.isFinite(contentLength) && contentLength > maxBytes) {
-    throw new UpstreamError("X API response body is too large");
+    throw new UpstreamError("X API response body is too large", { status: 413 });
   }
   if (!response.body) return new Uint8Array();
 
@@ -59,7 +60,7 @@ export async function readBoundedBytes(response, maxBytes) {
       const { done, value } = await reader.read();
       if (done) break;
       total += value.byteLength;
-      if (total > maxBytes) throw new UpstreamError("X API response body is too large");
+      if (total > maxBytes) throw new UpstreamError("X API response body is too large", { status: 413 });
       chunks.push(value);
     }
   } catch (error) {

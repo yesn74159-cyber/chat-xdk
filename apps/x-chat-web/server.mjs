@@ -177,7 +177,7 @@ async function authenticatedJuiceboxConfig() {
 async function streamBoundedMedia(response, res, maxBytes) {
   const contentLength = Number(response.headers.get("content-length"));
   if (Number.isFinite(contentLength) && contentLength > maxBytes) {
-    throw new UpstreamError("X API response body is too large");
+    throw new UpstreamError("X API response body is too large", { status: 413 });
   }
   res.writeHead(200, {
     ...securityHeaders(),

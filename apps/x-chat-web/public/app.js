@@ -1453,7 +1453,15 @@ function render(entry) {
         const response = await fetch(
           `/api/media/download?conversation_id=${encodeURIComponent(event.conversationId || state.conversationId)}&media_hash_key=${encodeURIComponent(media.hash)}`,
         );
-        if (!response.ok) throw new Error(`ดาวน์โหลดไม่สำเร็จ: HTTP ${response.status}`);
+        if (!response.ok) {
+          let detail = "";
+          try {
+            detail = (await response.json())?.error || "";
+          } catch {
+            detail = "";
+          }
+          throw new Error(`ดาวน์โหลดไม่สำเร็จ: HTTP ${response.status}${detail ? ` — ${detail}` : ""}`);
+        }
         const imageBlob = await decryptMediaStream(response, entry, media.hash);
         const image = document.createElement("img");
         image.alt = media.filename;
