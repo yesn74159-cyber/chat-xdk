@@ -1113,11 +1113,30 @@ test("mock group member changes rotate key material and reject a stale roster", 
   assert.equal(rotationMismatch.response.status, 400);
   assert.equal(rotationMismatch.body.error, "Group rotation roster mismatch");
 
+  const racers = ["5555", "6666"];
+  for (const id of racers) {
+    const identity = await createChat();
+    const registered = await post("/api/mock/identity", {
+      user_id: id,
+      public_key: identity.generateKeypairs().publicKey,
+    });
+    assert.equal(registered.response.status, 200);
+  }
+  const raceResults = await Promise.all(
+    racers.map((id) => post("/api/group/members/add", addBody([id], [vectors.event_sender_id, "3333", id]))),
+  );
+  assert.deepEqual(
+    raceResults.map((result) => result.response.status).sort(),
+    [200, 400],
+    "concurrent membership changes must not both apply",
+  );
+  const winner = racers[raceResults.findIndex((result) => result.response.status === 200)];
+
   const { body: rosterAfter } = await request(
     `/api/group/roster?conversation_id=${encodeURIComponent(conversationId)}`,
   );
-  assert.deepEqual(rosterAfter.data.memberIds.sort(), [vectors.event_sender_id, "3333"].sort());
-  assert.equal(rosterAfter.data.keyVersion, currentVersion);
+  assert.deepEqual(rosterAfter.data.memberIds.sort(), [vectors.event_sender_id, "3333", winner].sort());
+  assert.equal(rosterAfter.data.keyVersion, "999");
 });
 
 test("mock-only identity registration accepts generated public keys without receiving private key material", async () => {

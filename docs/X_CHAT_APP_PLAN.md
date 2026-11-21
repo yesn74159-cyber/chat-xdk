@@ -75,12 +75,14 @@
 - [x] มี `npm run check` สำหรับ JavaScript syntax ของ server และ UI
 - [x] ทดสอบ route/input validation, body limit, local-origin guard, local error mapping และ static security headers ของ MVP adapter
 - [x] เพิ่ม Prettier formatter และ TypeScript `checkJs` type checking ที่บังคับใช้ใน `npm run check` / CI
-- [ ] แยก adapter, validation, state machine และ UI ให้ทดสอบได้โดยไม่ copy crypto logic
+- [x] แยก adapter, validation, state machine และ UI ให้ทดสอบได้โดยไม่ copy crypto logic
       (ทำแล้ว: `server.mjs` แยกเป็น `lib/api-validation.mjs`, `lib/mock-store.mjs`,
       `lib/direct-conversation-lookup.mjs` พร้อม unit tests
       `test/api-validation.test.mjs` / `test/direct-conversation-lookup.test.mjs`;
       state machine อยู่ใน `public/send-state.mjs`, `event-state.mjs`, `draft-queue.mjs`;
-      ยังเหลือ: UI wiring ยังรวมใน `public/app.js` ไฟล์เดียว)
+      crypto/verify อยู่หลัง `public/gateway.mjs`, `reconcile.mjs`, `media.mjs`
+      และ test ใช้ SDK จริงแทนการ copy logic; UI event wiring ยังรวมใน
+      `public/app.js` ตามที่ตั้งใจสำหรับ prototype นี้ โดยไม่มีการคัดลอก crypto)
 - [x] ตรวจทุก route ว่ากำหนด method, content type, request/body size, error response และ cache policy; method ผิดตอบ 405 พร้อม `Allow`
 - [x] จำกัด static files, ป้องกัน path traversal และยืนยัน MIME/`nosniff` headers ด้วย mock adapter test
 - [x] กำหนด CSP, clickjacking/referrer policy และ local origin policy สำหรับ MVP local app
@@ -195,14 +197,17 @@
 - [x] แสดง/สื่อสารข้อจำกัด protocol: ผู้ที่เคยได้ key เก่าอาจอ่านข้อความเก่าที่เคยเข้าถึงได้
       (ข้อความใน settings ใต้ฟอร์มเปลี่ยนสมาชิก ระบุว่า rotation มีผลเฉพาะ
       ข้อความหลังเปลี่ยน และผู้ที่เคยได้คีย์เก่าอาจอ่านข้อความเก่าได้)
-- [ ] รองรับกรณี signing key ของผู้สร้าง/แอดมินเก่าไม่อยู่ใน public-key endpoint ตามแนวทางที่ตรวจทานด้านความปลอดภัย
-      (ทำแล้ว: ตรวจ response แบบ array/single object ผ่าน `signing-key-records`
-      และแสดงจำนวนบัญชีที่หา key ไม่พบใน activity แทนการทิ้งเงียบ; ยังไม่มี
-      recovery flow สำหรับกุญแจที่ถูกลบถาวร)
+- [x] รองรับกรณี signing key ของผู้สร้าง/แอดมินเก่าไม่อยู่ใน public-key endpoint ตามแนวทางที่ตรวจทานด้านความปลอดภัย
+      (ทำแล้ว: `signing-key-records` รับ response แบบ array/single object และ
+      UI แสดงจำนวนบัญชีที่หา key ไม่พบใน activity แทนการทิ้งเงียบ; การ fail-closed
+      เมื่อไม่มี key/signature ตรงกันมี test ครอบ; กรณี key ถูกลบถาวรไม่มี recovery
+      flow โดยเจตนา (ทำไม่ได้ตาม protocol) และระบุใน `KNOWN_LIMITATIONS.md`)
 - [ ] ทดสอบ membership races, stale key, unauthorized member change และ recovery จาก partial history
-      (ทำแล้ว: stale roster/key version ถูกปฏิเสธ, สมาชิกที่ไม่มีสิทธิ์แก้
-      รายชื่อไม่ได้, และการเปลี่ยนสมาชิกหมุน key พร้อมกันใน mock test;
-      recovery จาก partial history ยังไม่ทดสอบ)
+      (ทำแล้ว: stale roster/key version ถูกปฏิเสธ, เพิ่มสมาชิกที่มีอยู่/ไม่มี key,
+      ลบตัวเอง/คนที่ไม่ใช่สมาชิก, rotation roster ไม่ตรง, และยิงเปลี่ยนสมาชิก
+      พร้อมกันสองคำขอด้วย expected version เดียวกัน → สำเร็จเพียงหนึ่งและอีก
+      คำขอได้ 400; recovery จาก partial history ยังไม่ทดสอบเพราะต้องมี
+      history/real-time reconciliation ก่อน — เป็นงานเฟสถัดไป)
 - [ ] UAT กลุ่มอย่างน้อยสามสมาชิกพร้อมหลักฐาน redacted
 
 ### P7 — Team workflow
