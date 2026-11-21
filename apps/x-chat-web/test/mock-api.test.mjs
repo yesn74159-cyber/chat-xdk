@@ -1395,3 +1395,10 @@ test("mock adapter enforces local request, validation, body-size, and route erro
     index.response.headers.get("content-security-policy"),
   );
 });
+
+test("Real-time stream endpoint answers 501 in mock mode", async () => {
+  // Kept last: a 501 response counts as a server error in /api/metrics.
+  const { response, body } = await request("/api/stream");
+  assert.equal(response.status, 501);
+  assert.match(body.error, /live mode/i);
+});

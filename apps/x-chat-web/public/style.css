@@ -255,6 +255,20 @@ summary:focus-visible {
   text-decoration: underline;
 }
 
+#live-stream[data-state="connected"] {
+  color: #75cb9b;
+}
+
+#live-stream[data-state="connecting"],
+#live-stream[data-state="reconnecting"] {
+  color: #e5bf74;
+}
+
+#live-stream[data-state="auth-required"],
+#live-stream[data-state="stopped"] {
+  color: #ee9299;
+}
+
 .icon-button {
   display: inline-grid;
   width: 38px;

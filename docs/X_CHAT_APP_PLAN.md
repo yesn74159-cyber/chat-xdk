@@ -1,6 +1,6 @@
 # แผนแอป X Chat: ข้อความ ลิงก์ และภาพเป็นอันดับแรก
 
-สถานะ: อัปเดต (2026-11-21) — ต้นแบบ local-only ที่ `apps/x-chat-web/` ผ่าน offline/mock/static gate ในเครื่อง (142 offline + 21 mock), มีคู่มือผู้ใช้ภาษาไทย, a11y audit บางส่วน และ cross-tab cache guard; LIVE_PASS ปิดครบแล้ว (ข้อความ/URL/ภาพสองทาง, multi-part, B-side verify, negative cases) พร้อมถอน OAuth 2.0 access token และลบไฟล์ทดสอบ — เฟสถัดไปคือ real-time events และ inbox persistence; ข้อที่ติดบัญชี/สิทธิ์ดูหัวข้อ "สิ่งที่ยังติด (Blocked)"
+สถานะ: อัปเดต (2026-11-21) — ต้นแบบ local-only ที่ `apps/x-chat-web/` ผ่าน offline/mock/static gate ในเครื่อง (149 offline + 22 mock), มีคู่มือผู้ใช้ภาษาไทย, a11y audit บางส่วน และ cross-tab cache guard; LIVE_PASS ปิดครบแล้ว (ข้อความ/URL/ภาพสองทาง, multi-part, B-side verify, negative cases) พร้อมถอน OAuth 2.0 access token และลบไฟล์ทดสอบ — real-time events ต่อผ่าน `/api/stream` (SSE) แล้ว เหลือ UAT กับบัญชีจริง; เฟสถัดไปคือ inbox persistence; ข้อที่ติดบัญชี/สิทธิ์ดูหัวข้อ "สิ่งที่ยังติด (Blocked)"
 
 ## สถานะงานปัจจุบัน
 
@@ -12,10 +12,10 @@
 - [x] (2026-11-21) ถอดบัญชีทดสอบออกจากซอร์ส: Live Create target มาจาก environment 4 ตัว และ test/preflight ใช้ค่าจำลอง
 - [x] (2026-11-21) ปิดช่องว่าง STATIC_PASS ที่ทำได้: Node 20+, CI matrix 20/22, retry ใช้ `message_id` เดิม, offline แสดงข้อความที่ verify แล้วจาก cache
 - [x] ทำ `LIVE_PASS`: บัญชีทดสอบ A/B พร้อม OAuth scopes ที่อนุมัติ (2026-11-21: text/URL ผ่าน, media สองทางผ่านด้วย OAuth ที่มี `media.write`, multi-part 4.12 MiB ส่งและ B เห็นภาพตรง, B-side verify ผ่าน, negative cases ฝั่ง SDK และ media hash ผิดบน conversation จริงผ่าน, เซิร์ฟเวอร์หยุดและลบไฟล์ทดสอบแล้ว, ถอน OAuth 2.0 access token ใน X Developer Console แล้ว — token ใช้ไม่ได้อีก; retry กำกวมและ live tamper ไม่มีเงื่อนไขให้เกิดจริง ครอบด้วย mock/SDK test แทน)
-- [ ] เพิ่ม inbox persistence, pagination และ real-time events (pagination ทำแล้ว; เหลือ persistence และ real-time)
+- [ ] เพิ่ม inbox persistence, pagination และ real-time events (pagination และ real-time ทำแล้ว; เหลือ persistence)
 - [ ] เพิ่มกลุ่ม, team workflow และ automation ตามลำดับเฟส
 
-ลำดับดำเนินงานถัดไป: (1) LIVE_PASS ปิดแล้ว 2026-11-21 (2) เลือกงานเฟสถัดไป: real-time events/auto-refresh, กลุ่ม/team workflow หรือ production hardening (3) ข้อที่ติดบัญชี/สิทธิ์ดูหัวข้อ "สิ่งที่ยังติด (Blocked)"
+ลำดับดำเนินงานถัดไป: (1) LIVE_PASS ปิดแล้ว 2026-11-21 (2) real-time pipeline ปิดฝั่ง implementation แล้ว 2026-11-21 — เหลือ UAT กับบัญชีจริงเมื่อเชื่อม OAuth ใหม่ (3) เฟสถัดไป: inbox persistence (4) ข้อที่ติดบัญชี/สิทธิ์ดูหัวข้อ "สิ่งที่ยังติด (Blocked)"
 
 ## Master checklist — ตั้งแต่ต้นแบบจนจบโครงการ
 
@@ -137,22 +137,22 @@
 
 เวลาเป็น UTC; alias คือ A = บัญชีเจ้าของเครื่อง local, B = คู่สนทนา; ไม่มี token, handle เต็ม, key blob หรือ plaintext ในไฟล์นี้
 
-| เวลา (UTC)        | เคส                                   | ทิศทาง | ID ที่อ้างอิง                                      | Key version   | X HTTP               | ผล verify                                                  | Media bytes              |
-| ----------------- | ------------------------------------- | ----- | ---------------------------------------------- | ------------- | -------------------- | ---------------------------------------------------------- | ------------------------ |
-| 2026-11-21T11:34Z | text                                  | A→B   | sender ID ท้าย `…2912` (event ID ไม่ได้บันทึก)      | not captured  | ok (ข้อความขึ้นทั้งสองฝั่ง) | verified ทั้งฝั่ง A และ B                                      | n-a                      |
-| 2026-11-21T11:34Z | url                                   | A→B   | ไม่ได้บันทึก                                       | not captured  | ok                   | verified                                                   | n-a                      |
-| 2026-11-21T11:34Z | png                                   | A→B   | ไม่ได้บันทึก                                       | not captured  | ok                   | verified                                                   | equal (เจ้าของบัญชี B ยืนยัน) |
-| 2026-11-21T11:34Z | reply text                            | B→A   | sender ID ท้าย `…2912`                          | not captured  | ok                   | verified ฝั่ง A                                              | n-a                      |
-| 2026-11-21T12:30Z | jpg (PG146.jpg)                       | B→A   | sender ID ท้าย `…2912`                          | not captured  | ok                   | verified: ถอดและแสดงภาพจริงในแอป                            | ภาพตรงกับไฟล์ที่ส่ง           |
-| 2026-11-21T12:30Z | jpg (images.jpg)                      | B→A   | sender ID ท้าย `…2912`                          | not captured  | ok                   | verified: ถอดและแสดงภาพจริงในแอป                            | ภาพตรงกับไฟล์ที่ส่ง           |
-| 2026-11-21T12:30Z | gif (giphy.gif)                       | B→A   | sender ID ท้าย `…2912`                          | not captured  | ok                   | fail-closed: ชนิดไฟล์ยังไม่รองรับ (PNG/JPEG เท่านั้น)              | ไม่แสดง (ตามดีไซน์)         |
-| 2026-11-21T12:30Z | xlsx (FastClaw_Admin.xlsx)            | B→A   | sender ID ท้าย `…2912`                          | not captured  | ok                   | fail-closed: ชนิดไฟล์ยังไม่รองรับ                               | ไม่แสดง (ตามดีไซน์)         |
-| 2026-11-21T12:30Z | zip (PG.zip)                          | B→A   | sender ID ท้าย `…2912`                          | not captured  | 413                  | ไม่ดาวน์โหลด: เกินเพดาน 16 MB ของแอป                          | n-a                      |
-| 2026-11-21T12:42Z | jpg upload (แอป local)                | A→B   | ไม่ได้บันทึก                                       | not captured  | ok                   | verified: ส่งจากแอป local, ฝั่ง B เห็นภาพในแอป X               | ภาพตรงกับไฟล์ที่ส่ง           |
-| 2026-11-21T12:57Z | media hash ผิด                         | A อ่าน | conversation เดิม A/B                           | n-a           | 404                  | fail-closed: ไม่ดาวน์โหลด/ไม่แสดง                             | n-a                      |
-| 2026-11-21T12:57Z | tamper ciphertext/signature/KeyChange | local | fixture ของ SDK                                | 1             | n-a                  | fail-closed: signature verification failed / ปฏิเสธทั้ง batch | n-a                      |
-| 2026-11-21T13:56Z | jpg 4.12 MiB (multi-part, 2 parts)    | A→B   | sender ท้าย `…4850`; conversation `…4850-…2912` | 1795202204266 | ok (สถานะ "ส่งแล้ว")   | ส่งสำเร็จ; B เห็นภาพในแอป X และตอบกลับ                         | ภาพตรงกับไฟล์ (B ยืนยัน)     |
-| 2026-11-21T13:59Z | reply text (B→A)                      | B→A   | sender ท้าย `…2912`; conversation `…4850-…2912` | 1795202204266 | ok                   | verified ฝั่ง A (แสดงข้อความ B); B ถอดภาพของ A ได้             | n-a                      |
+| เวลา (UTC)        | เคส                                   | ทิศทาง | ID ที่อ้างอิง                                   | Key version   | X HTTP                      | ผล verify                                                     | Media bytes                   |
+| ----------------- | ------------------------------------- | ------ | ----------------------------------------------- | ------------- | --------------------------- | ------------------------------------------------------------- | ----------------------------- |
+| 2026-11-21T11:34Z | text                                  | A→B    | sender ID ท้าย `…2912` (event ID ไม่ได้บันทึก)  | not captured  | ok (ข้อความขึ้นทั้งสองฝั่ง) | verified ทั้งฝั่ง A และ B                                     | n-a                           |
+| 2026-11-21T11:34Z | url                                   | A→B    | ไม่ได้บันทึก                                    | not captured  | ok                          | verified                                                      | n-a                           |
+| 2026-11-21T11:34Z | png                                   | A→B    | ไม่ได้บันทึก                                    | not captured  | ok                          | verified                                                      | equal (เจ้าของบัญชี B ยืนยัน) |
+| 2026-11-21T11:34Z | reply text                            | B→A    | sender ID ท้าย `…2912`                          | not captured  | ok                          | verified ฝั่ง A                                               | n-a                           |
+| 2026-11-21T12:30Z | jpg (PG146.jpg)                       | B→A    | sender ID ท้าย `…2912`                          | not captured  | ok                          | verified: ถอดและแสดงภาพจริงในแอป                              | ภาพตรงกับไฟล์ที่ส่ง           |
+| 2026-11-21T12:30Z | jpg (images.jpg)                      | B→A    | sender ID ท้าย `…2912`                          | not captured  | ok                          | verified: ถอดและแสดงภาพจริงในแอป                              | ภาพตรงกับไฟล์ที่ส่ง           |
+| 2026-11-21T12:30Z | gif (giphy.gif)                       | B→A    | sender ID ท้าย `…2912`                          | not captured  | ok                          | fail-closed: ชนิดไฟล์ยังไม่รองรับ (PNG/JPEG เท่านั้น)         | ไม่แสดง (ตามดีไซน์)           |
+| 2026-11-21T12:30Z | xlsx (FastClaw_Admin.xlsx)            | B→A    | sender ID ท้าย `…2912`                          | not captured  | ok                          | fail-closed: ชนิดไฟล์ยังไม่รองรับ                             | ไม่แสดง (ตามดีไซน์)           |
+| 2026-11-21T12:30Z | zip (PG.zip)                          | B→A    | sender ID ท้าย `…2912`                          | not captured  | 413                         | ไม่ดาวน์โหลด: เกินเพดาน 16 MB ของแอป                          | n-a                           |
+| 2026-11-21T12:42Z | jpg upload (แอป local)                | A→B    | ไม่ได้บันทึก                                    | not captured  | ok                          | verified: ส่งจากแอป local, ฝั่ง B เห็นภาพในแอป X              | ภาพตรงกับไฟล์ที่ส่ง           |
+| 2026-11-21T12:57Z | media hash ผิด                        | A อ่าน | conversation เดิม A/B                           | n-a           | 404                         | fail-closed: ไม่ดาวน์โหลด/ไม่แสดง                             | n-a                           |
+| 2026-11-21T12:57Z | tamper ciphertext/signature/KeyChange | local  | fixture ของ SDK                                 | 1             | n-a                         | fail-closed: signature verification failed / ปฏิเสธทั้ง batch | n-a                           |
+| 2026-11-21T13:56Z | jpg 4.12 MiB (multi-part, 2 parts)    | A→B    | sender ท้าย `…4850`; conversation `…4850-…2912` | 1795202204266 | ok (สถานะ "ส่งแล้ว")        | ส่งสำเร็จ; B เห็นภาพในแอป X และตอบกลับ                        | ภาพตรงกับไฟล์ (B ยืนยัน)      |
+| 2026-11-21T13:59Z | reply text (B→A)                      | B→A    | sender ท้าย `…2912`; conversation `…4850-…2912` | 1795202204266 | ok                          | verified ฝั่ง A (แสดงข้อความ B); B ถอดภาพของ A ได้            | n-a                           |
 
 หมายเหตุ: conversation ID และ key version ไม่แสดงใน UI รอบนี้ จึงไม่บันทึก;
 B-side verify และ multi-part ผ่านแล้ว (B เห็นภาพและตอบกลับ); retry ยังไม่ทดสอบ
@@ -225,13 +225,33 @@ token (ไม่ได้ขอ `offline.access`) — แอปจึงเพ�
 
 ### P5 — Real-time delivery และความน่าเชื่อถือ
 
-- [ ] เลือก activity stream หรือ webhook จาก deployment model และบันทึกเหตุผล
-- [ ] ทำ subscription lifecycle: create/list/update/delete และ cleanup เมื่อ user disconnects
-- [ ] สำหรับ webhook: HTTPS, verification/CRC, request signature verification, replay window และ rate limit
-- [ ] สำหรับ stream: reconnect with bounded backoff, cursor/backfill strategy และ cancellation
-- [ ] รับ `chat.received` และ `chat.sent`; ผูก event กับ conversation และ refresh signing keys อย่างปลอดภัย
+- [x] เลือก activity stream หรือ webhook จาก deployment model และบันทึกเหตุผล
+      (2026-11-21: เลือก **persistent HTTP stream** `GET /2/activity/stream`
+      เพราะแอปเป็น loopback-only (`127.0.0.1`) และ webhook บังคับใช้ public
+      HTTPS บนพอร์ต 443 + CRC/signature/replay window ซึ่งไม่มีในเครื่องนี้;
+      subscription ใช้ `chat.received` + `chat.sent` กับ filter `user_id`
+      ฝั่ง user-context, backfill สูงสุด 5 นาทีต่อการเชื่อมต่อ จึงใช้
+      `backfill_minutes=5` ตอน reconnect และพึ่ง history pagination เติมช่องว่างที่นานกว่า)
+- [x] ทำ subscription lifecycle: create/list/reuse ของ `chat.received` + `chat.sent`;
+      เมื่อแท็บสุดท้ายปิดจะ abort upstream stream ทันที (ไม่ลบ subscription
+      เพราะตัว subscription เองไม่มี state ที่ต้อง cleanup และคงไว้ให้ reconnect
+      ใช้ backfill ต่อได้โดยไม่ต้องสร้างซ้ำ)
+- [ ] สำหรับ webhook: HTTPS, verification/CRC, request signature verification, replay window และ rate limit (ยังไม่ทำ — ไม่ได้เลือกเส้นทางนี้ในรุ่น local-only)
+- [x] สำหรับ stream: reconnect with bounded backoff (500ms→30s), `backfill_minutes=5`
+      ต่อการเชื่อมต่อ, dedup ด้วย `event_uuid` (จำกัด 1,000 รายการ) และ cancellation
+      ผ่าน AbortController เมื่อไม่มี SSE client
+- [x] รับ `chat.received` และ `chat.sent`; ผูก event กับ conversation
+      (normalize แล้วส่งออกทาง `/api/stream`; ฝั่งเบราว์เซอร์ refresh เฉพาะห้องที่เปิด
+      อยู่ และโหลด signing keys ใหม่ผ่าน `refresh()` ตามเดิม — frame ไม่มี
+      ciphertext/token หลุดออกจากเซิร์ฟเวอร์)
 - [ ] ประมวล `conversation_key_change_event` ก่อน message และรักษา monotonic key-version floor
-- [ ] ทดสอบ duplicate/out-of-order/lost delivery, reconnect และ backfill โดยไม่ render plaintext ที่ไม่ verify
+      (ตอนนี้ live frame ตั้งใจไม่ส่ง encrypted material; การเปลี่ยน key เข้ามาทาง
+      history refresh ที่เรียง KeyChange ก่อน message อยู่แล้ว — floor guard
+      ยังต้องทำฝั่ง decrypt/state)
+- [x] ทดสอบ duplicate/out-of-order/lost delivery, reconnect และ backfill
+      โดยไม่ render plaintext ที่ไม่ verify (unit: dedup ข้าม chunk, comment line,
+      malformed line, backoff แรก 500ms, 401 → หยุดและขอ reconnect;
+      mock: delivery queue offline/duplicate/out-of-order เดิมยังผ่าน)
 - [ ] ทำ health/metrics ที่ไม่มี plaintext/key/token และ alert เฉพาะ operational signal ที่จำเป็น
       (ทำแล้ว: `/api/health` + `/api/metrics` นับ request/status bucket/server
       error โดยไม่เผย path หรือ PII + mock test; alerting ต้องมี infra
@@ -246,6 +266,8 @@ token (ไม่ได้ขอ `offline.access`) — แอปจึงเพ�
       heap +2 MiB, ไม่มี unexpected 5xx; ไม่มี rate limiter ของ server เอง —
       ต้องเพิ่มก่อนเปิดใช้นอก loopback)
 - [ ] UAT: ส่งและรับใน real-time, restart/reconnect และ history reconciliation ผ่านเกณฑ์
+      (รอเชื่อม OAuth บัญชีจริงใหม่ — access token เดิมถูกถอนตอนปิด LIVE_PASS;
+      implementation และ automated tests พร้อมแล้ว)
 
 ### P6 — กลุ่มเฉพาะสมาชิก
 

@@ -14,6 +14,7 @@ import { createChat } from "@xdevplatform/chat-xdk";
 import { createLiveDirectCreateAdapter } from "./lib/live-direct-create.mjs";
 import { createLiveCreatePermit } from "./lib/live-create-permit.mjs";
 import { createMockStore } from "./lib/mock-store.mjs";
+import { createActivityStream } from "./lib/activity-stream.mjs";
 import { lookupDirectConversations } from "./lib/direct-conversation-lookup.mjs";
 import {
   base64,
@@ -81,6 +82,7 @@ const routeMethods = {
   "/api/group/initialize": ["POST"],
   "/api/group/create": ["POST"],
   "/api/events": ["GET"],
+  "/api/stream": ["GET"],
   "/api/send": ["POST"],
   "/api/media/initialize": ["POST"],
   "/api/media/append": ["POST"],
@@ -93,6 +95,39 @@ const { mock, mockFixture, mockJson } = createMockStore(
 const liveCreatePermit = createLiveCreatePermit();
 const startedAt = Date.now();
 const metrics = { requests: 0, responses: new Map(), serverErrors: 0 };
+
+const liveActivity = mode === "mock" ? null : createActivityStream({ request: activityRequest });
+const streamClients = new Set();
+let activityOwnerId = "";
+let activityStartPromise = null;
+
+if (liveActivity) {
+  liveActivity.subscribe((frame) => {
+    if (frame.kind === "chat") {
+      broadcastStream("chat", frame);
+      return;
+    }
+    broadcastStream("status", frame);
+    // Let the next browser connection restart the stream after it dropped or
+    // the OAuth session expired; reconnecting stays owned by this instance.
+    if (frame.state === "stopped" || frame.state === "auth-required") activityStartPromise = null;
+  });
+}
+
+function sseFrame(res, event, payload) {
+  if (res.writableEnded) return;
+  res.write(`event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`);
+}
+
+function broadcastStream(event, payload) {
+  for (const client of streamClients) {
+    try {
+      sseFrame(client, event, payload);
+    } catch {
+      streamClients.delete(client);
+    }
+  }
+}
 
 function json(res, status, body, headers = {}) {
   res.writeHead(status, {
@@ -127,6 +162,39 @@ async function xRequest(path, options = {}) {
   const accessToken = await currentAccessToken();
   if (!accessToken) throw new UpstreamError("X_ACCESS_TOKEN is not configured on this local server", { status: 503 });
   return fetchX({ baseUrl: xBase, path, token: accessToken, options });
+}
+
+// The activity stream stays open for as long as X allows, so it cannot borrow
+// fetchX's fixed 10s deadline; cancellation comes from the caller's signal.
+async function activityRequest(path, options = {}) {
+  const accessToken = await currentAccessToken();
+  if (!accessToken) throw new UpstreamError("X_ACCESS_TOKEN is not configured on this local server", { status: 503 });
+  const headers = { authorization: `Bearer ${accessToken}` };
+  if (options.body !== undefined) headers["content-type"] = "application/json";
+  return fetch(new URL(path, xBase), {
+    method: options.method || "GET",
+    headers,
+    ...(options.body === undefined ? {} : { body: JSON.stringify(options.body) }),
+    signal: options.signal,
+    redirect: "error",
+  });
+}
+
+async function ensureLiveActivity() {
+  if (activityStartPromise) return activityStartPromise;
+  activityStartPromise = (async () => {
+    if (!activityOwnerId) {
+      const me = (await adapterJson("/2/users/me"))?.data;
+      activityOwnerId = userId(String(me?.id ?? ""), "authenticated user ID");
+    }
+    await liveActivity.start(activityOwnerId);
+  })();
+  try {
+    await activityStartPromise;
+  } catch (error) {
+    activityStartPromise = null;
+    throw error;
+  }
 }
 
 async function xJson(path, method = "GET", data) {
@@ -564,6 +632,36 @@ async function api(req, res, url) {
     const id = apiConversation(url.searchParams.get("conversation_id"));
     const page = paginationToken(url.searchParams.get("pagination_token"));
     return json(res, 200, await adapterJson(conversationEventsPath(id, page)));
+  }
+  if (path === "/api/stream" && req.method === "GET") {
+    if (!liveActivity) return json(res, 501, { error: "Real-time streaming is only available in live mode" });
+    await ensureLiveActivity();
+    res.writeHead(200, {
+      ...securityHeaders(),
+      "content-type": "text/event-stream; charset=utf-8",
+      "cache-control": "no-store, no-transform",
+      connection: "keep-alive",
+      "x-accel-buffering": "no",
+    });
+    res.write("retry: 5000\n\n");
+    streamClients.add(res);
+    sseFrame(res, "status", liveActivity.status());
+    const heartbeat = setInterval(() => {
+      if (!res.writableEnded) res.write(": ping\n\n");
+    }, 25_000);
+    heartbeat.unref?.();
+    let closed = false;
+    const cleanup = () => {
+      if (closed) return;
+      closed = true;
+      clearInterval(heartbeat);
+      streamClients.delete(res);
+      // No open tab: stop polling X so the local app is silent when unused.
+      if (streamClients.size === 0) liveActivity.stop();
+    };
+    req.on("close", cleanup);
+    res.on("close", cleanup);
+    return;
   }
   if (path === "/api/send" && req.method === "POST") {
     const data = await bodyJson(req);

@@ -334,6 +334,7 @@ const state = {
   liveCreateAttemptUsed: false,
   liveCreateSimulationEnabled: false,
   directChatEpoch: 0,
+  liveStream: null,
 };
 const FILE_READ_BYTES = 256 * 1024;
 const UPLOAD_PART_BYTES = 3 * 1024 * 1024;
@@ -2411,6 +2412,100 @@ el("sync-mock").addEventListener("click", () => syncMockDeliveries().catch((erro
 el("add-group-members").addEventListener("click", () => mutateGroupMembers("add"));
 el("remove-group-members").addEventListener("click", () => mutateGroupMembers("remove"));
 
+const liveStreamLabels = {
+  idle: "เรียลไทม์: ปิดอยู่",
+  connecting: "เรียลไทม์: กำลังเชื่อมต่อ…",
+  connected: "เรียลไทม์: เชื่อมต่อแล้ว",
+  "auth-required": "เรียลไทม์: ต้องเชื่อมต่อบัญชี X ใหม่",
+  stopped: "เรียลไทม์: หยุดชั่วคราว",
+};
+
+function setLiveStreamStatus(stateName, attempt = 0) {
+  const chip = el("live-stream");
+  chip.hidden = false;
+  chip.dataset.state = stateName;
+  chip.textContent =
+    stateName === "reconnecting"
+      ? `เรียลไทม์: กำลังเชื่อมต่อใหม่ (ครั้งที่ ${attempt || 1})`
+      : (liveStreamLabels[stateName] ?? "เรียลไทม์: สถานะไม่ทราบ");
+}
+
+function sameConversationId(localId, deliveredId) {
+  const local = String(localId ?? "").replaceAll("-", ":");
+  const delivered = String(deliveredId ?? "").replaceAll("-", ":");
+  return Boolean(local) && local === delivered;
+}
+
+let liveRefreshTimer = null;
+let liveListTimer = null;
+
+function scheduleConversationListRefresh() {
+  if (liveListTimer || !state.myId) return;
+  liveListTimer = setTimeout(() => {
+    liveListTimer = null;
+    loadConversations().catch(() => {});
+  }, 800);
+}
+
+function scheduleConversationRefresh(delay = 300) {
+  if (liveRefreshTimer) return;
+  liveRefreshTimer = setTimeout(async () => {
+    liveRefreshTimer = null;
+    if (!state.conversationId) return;
+    if (state.loadingPage) {
+      scheduleConversationRefresh(500);
+      return;
+    }
+    try {
+      await refresh();
+      scheduleConversationListRefresh();
+    } catch (error) {
+      activity(`มีข้อความใหม่ แต่โหลดประวัติไม่สำเร็จ: ${error.safeDiagnosticMessage ?? error.message}`);
+    }
+  }, delay);
+}
+
+// Refresh only the conversation the user has open. Anything else just re-reads
+// the sidebar so unread state and ordering stay right without touching keys.
+function onLiveChatEvent(frame) {
+  if (!frame || typeof frame.conversationId !== "string") return;
+  if (sameConversationId(state.conversationId, frame.conversationId)) {
+    scheduleConversationRefresh();
+    return;
+  }
+  scheduleConversationListRefresh();
+}
+
+function startLiveStream() {
+  if (state.mode !== "live" || typeof EventSource !== "function" || state.liveStream) return;
+  const source = new EventSource("/api/stream");
+  state.liveStream = source;
+  const parse = (message) => {
+    try {
+      return JSON.parse(message.data);
+    } catch {
+      return null;
+    }
+  };
+  source.addEventListener("status", (message) => {
+    const frame = parse(message);
+    if (!frame) return;
+    setLiveStreamStatus(frame.state, frame.attempt);
+    if (frame.state === "auth-required") {
+      source.close();
+      state.liveStream = null;
+      el("auth-reconnect").hidden = false;
+    }
+  });
+  source.addEventListener("chat", (message) => {
+    const frame = parse(message);
+    if (frame) onLiveChatEvent(frame);
+  });
+  source.addEventListener("error", () => {
+    setLiveStreamStatus("reconnecting", 1);
+  });
+}
+
 try {
   const status = await api("/api/status");
   state.mode = status.mode;
@@ -2428,6 +2523,7 @@ try {
   el("sync-mock").hidden = status.mode !== "mock";
   setSendPhase("idle");
   activity("Local inbox พร้อม; ยืนยันบัญชีหรือโหลด key blob เพื่อเริ่มต้น");
+  if (status.mode === "live" && status.tokenConfigured) startLiveStream();
 } catch (error) {
   el("connection-status").textContent = "SDK ยังไม่พร้อม";
   activity(`โหลด SDK ไม่สำเร็จ: ${error.message}`);

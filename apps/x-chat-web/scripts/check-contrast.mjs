@@ -52,6 +52,9 @@ const pairs = [
   ["send state sent", "#75cb9b", "#111a27", MIN_NORMAL],
   ["encryption note", "#8493a6", "#111a27", MIN_NORMAL],
   ["brand mark (large)", "#ffffff", "#2563eb", MIN_LARGE],
+  ["live stream connected", "#75cb9b", "#0b1018", MIN_NORMAL],
+  ["live stream pending", "#e5bf74", "#0b1018", MIN_NORMAL],
+  ["live stream offline", "#ee9299", "#0b1018", MIN_NORMAL],
 ];
 
 function channels(hex) {
