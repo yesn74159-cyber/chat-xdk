@@ -108,7 +108,17 @@ test("X request wrapper applies authorization, maps failures, and times out", as
       timeoutMs: 1,
       fetchImpl: async (_url, options) =>
         new Promise((_resolve, reject) => {
-          options.signal.addEventListener("abort", () => reject(options.signal.reason));
+          // AbortSignal.timeout()'s timer is unref'd, so on a quiet event loop
+          // the abort can race the test runner draining. Keep the loop alive
+          // with a referenced timer so this promise always settles.
+          const keepAlive = setTimeout(
+            () => reject(new DOMException("The operation was aborted due to timeout", "TimeoutError")),
+            5_000,
+          );
+          options.signal.addEventListener("abort", () => {
+            clearTimeout(keepAlive);
+            reject(options.signal.reason);
+          });
         }),
     }),
     (error) =>
