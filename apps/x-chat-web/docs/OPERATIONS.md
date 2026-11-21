@@ -6,11 +6,11 @@ It is not an operations plan for a hosted or team deployment; see
 
 ## Environments and configuration
 
-| Environment | How it runs                                                             | Network  | State                                                              |
-| ----------- | ----------------------------------------------------------------------- | -------- | ------------------------------------------------------------------ |
-| Development | `npm run start:mock` (or `X_CHAT_API_MODE=mock npm start`)              | loopback | In-memory Mock store; lost on server restart                       |
-| Test / CI   | `npm test`, `npm run test:browser`, `npm run soak:mock`                 | loopback | Mock server spawned per run on an ephemeral `PORT=0` and discarded |
-| Production  | `X_CHAT_API_MODE=live` with `X_ACCESS_TOKEN` in the process environment | loopback | Encrypted browser IndexedDB cache; no server-side persistence      |
+| Environment | How it runs                                                                 | Network  | State                                                                 |
+| ----------- | --------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------- |
+| Development | `npm run start:mock` (or `X_CHAT_API_MODE=mock npm start`)                  | loopback | In-memory Mock store; lost on server restart                          |
+| Test / CI   | `npm test`, `npm run test:browser`, `npm run soak:mock`                     | loopback | Mock server spawned per run on an ephemeral `PORT=0` and discarded    |
+| Production  | `X_CHAT_API_MODE=live` with OAuth (`X_OAUTH_CLIENT_ID`) or `X_ACCESS_TOKEN` | loopback | Encrypted browser IndexedDB cache; OAuth tokens in server memory only |
 
 Configuration is read only from the server process environment:
 
@@ -18,7 +18,13 @@ Configuration is read only from the server process environment:
 | --------------------------------------------- | ----------------------------------------------------- | ------------------------------------------------------ |
 | `PORT`                                        | Loopback port (default `8787`)                        | Bind is always `127.0.0.1`; do not expose it           |
 | `X_CHAT_API_MODE`                             | `live` (default) or `mock`                            | Mock is for local testing only                         |
-| `X_ACCESS_TOKEN`                              | User token for live X API calls                       | Env-only; never `.env`, `setx`, command line or source |
+| `X_ACCESS_TOKEN`                              | Static user token for live X API calls                | Env-only; never `.env`, `setx`, command line or source |
+| `X_OAUTH_CLIENT_ID`                           | OAuth 2.0 client id (preferred over static token)     | Sign in at `/api/auth/login`; token stays in memory    |
+| `X_OAUTH_CLIENT_SECRET`                       | Secret for confidential OAuth clients                 | Optional for public clients using PKCE                 |
+| `X_OAUTH_REDIRECT_URI`                        | OAuth callback URL                                    | Default `http://127.0.0.1:<PORT>/api/auth/callback`    |
+| `X_OAUTH_SCOPES`                              | Space-separated OAuth scopes                          | Add `media.write`/`offline.access` when approved       |
+| `X_OAUTH_AUTHORIZE_URL`, `X_OAUTH_TOKEN_URL`  | OAuth endpoints (tests/rehearsal only)                | Default X endpoints                                    |
+| `X_API_BASE_URL`                              | X API base URL (tests only)                           | Default `https://api.x.com`                            |
 | `X_CHAT_LIVE_OWNER_USER_ID`                   | Single-use Live Create owner ID                       | All four Live Create values must be present and valid  |
 | `X_CHAT_LIVE_OWNER_USERNAME`                  | Single-use Live Create owner username                 | Env-only                                               |
 | `X_CHAT_LIVE_RECIPIENT_USER_ID`               | Single-use Live Create recipient ID                   | Env-only                                               |
@@ -115,6 +121,9 @@ encrypted IndexedDB cache in the browser.
 - Gates: `npm run check`, `npm test`, `npm run test:browser` (CI requires a
   browser), `npm run soak:mock`, `npm run scan:secrets`,
   `npm audit --omit=dev --audit-level=high`.
+- `npm run preflight:live` checks the live environment (credential source,
+  loopback redirect, scopes, optional Live Create target) and prints statuses
+  only; see `LIVE_PASS_RUNBOOK.md`.
 - `/api/health` reports mode, SDK presence and uptime; `/api/metrics` reports
   request counts, status buckets, server errors and RSS/heap. Neither exposes
   paths, accounts, tokens or message data.

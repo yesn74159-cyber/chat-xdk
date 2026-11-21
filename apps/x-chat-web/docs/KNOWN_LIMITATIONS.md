@@ -42,8 +42,10 @@ team or live deployment needs a new review rather than inheriting this list.
   control and a weak/reused passphrase weakens its protection.
 - Live use still needs X OAuth scopes/credits, consented test accounts and the
   redacted two-account evidence. `LIVE_PASS` is **NOT_VERIFIED**.
-- Token lifecycle is process-environment only until an OAuth refresh/revoke
-  flow is designed; the ad-hoc token is not a release solution.
+- Server-side OAuth (PKCE, refresh) is implemented and fake-IdP tested, but the
+  token stays in server memory only: a restart requires signing in again, and
+  there is no sign-out/revoke endpoint. Real-app authorization and token
+  lifetime behaviour remain part of `LIVE_PASS` (`NOT_VERIFIED`).
 
 ## Client support and accessibility
 

@@ -14,7 +14,8 @@ Local, single-account Mock-first prototype. It is not a hosted product and
 ### Added
 
 - Loopback-only Node adapter with browser-side Chat XDK WASM crypto; the
-  server never receives private keys, plaintext or the token.
+  server never receives private keys or plaintext, and X API tokens stay in the
+  server process rather than browser JavaScript.
 - Send/receive text, URLs and one PNG/JPEG image with signature verification
   and fail-closed rendering.
 - Mock direct chats, groups (create + add/remove with key rotation), unread
@@ -25,6 +26,11 @@ Local, single-account Mock-first prototype. It is not a hosted product and
   missing-page handling.
 - `/api/health` and `/api/metrics` (counts, status buckets, server errors,
   RSS/heap) with no paths, accounts or message data.
+- Server-side OAuth 2.0 sign-in (`/api/auth/login`, PKCE S256, single-use
+  state, refresh) so live tokens stay in server memory and never reach browser
+  JavaScript; static `X_ACCESS_TOKEN` remains as a fallback.
+- `npm run preflight:live` readiness check that prints statuses only, plus the
+  `LIVE_PASS` runbook and redacted evidence template.
 - Quality gates: offline + Mock tests, installed-browser smoke on Chrome/Edge
   at desktop and 375px, loopback soak probe, credential scan, dependency
   audit, CycloneDX SBOM in CI.

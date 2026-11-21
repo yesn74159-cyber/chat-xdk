@@ -65,9 +65,20 @@ or message content.
 
 ## 2. Local setup
 
+See [`LIVE_PASS_RUNBOOK.md`](LIVE_PASS_RUNBOOK.md) for the owner tasks, the
+OAuth sign-in flow, the redacted evidence template, and cleanup.
+
 - Use Node.js 20 or newer and run `npm ci`, `npm run check`, and `npm test`.
-- Set `X_ACCESS_TOKEN` only in the local process environment. Never commit it,
-  put it in `.env`, or paste it into a terminal transcript.
+- Run `npm run preflight:live`; it prints only check names and statuses, never
+  credential values.
+- Prefer server-side OAuth: set `X_OAUTH_CLIENT_ID` /
+  `X_OAUTH_CLIENT_SECRET`, start the server, open
+  `http://127.0.0.1:8787/api/auth/login`, and confirm
+  `/api/auth/status` reports `authenticated: true`. The access and refresh
+  tokens stay in server memory and are never returned to browser JavaScript.
+- Alternatively set `X_ACCESS_TOKEN` only in the local process environment
+  (the static token takes precedence when both are set). Never commit it, put
+  it in `.env`, or paste it into a terminal transcript.
 - Start `npm start`, open `http://127.0.0.1:8787`, and confirm `/api/status`
   shows `tokenConfigured: true`. This confirms only local configuration, not
   token validity or scopes.

@@ -14,11 +14,16 @@ and the single list of what the prototype does not do is
 1. Use Node.js 20 or newer, then run `npm ci` in this directory. The locked
    `@xdevplatform/chat-xdk` 0.7.1 and `juicebox-sdk` 0.3.7 packages include
    their compiled WASM bindings; `npm start` builds the local browser bundle.
-2. For live work only, set `X_ACCESS_TOKEN` in your local shell environment to a user-context token.
-   The documented baseline is `dm.read`, `dm.write`, `tweet.read`, and
-   `users.read`; image upload additionally needs `media.write`. Confirm the
-   exact scopes against the operations enabled for the X Developer app. Do not
-   place a token in a file or paste it into chat.
+2. For live work, prefer server-side OAuth: set `X_OAUTH_CLIENT_ID` (and secret
+   for confidential clients), run `npm run preflight:live`, then open
+   `http://127.0.0.1:8787/api/auth/login`. Tokens stay in server memory and are
+   never sent to browser JavaScript. A static `X_ACCESS_TOKEN` in the local
+   shell environment still works and takes precedence. The documented baseline
+   scopes are `dm.read`, `dm.write`, `tweet.read`, and `users.read`; image
+   upload additionally needs `media.write`. Confirm the exact scopes against
+   the operations enabled for the X Developer app, and follow
+   [docs/LIVE_PASS_RUNBOOK.md](docs/LIVE_PASS_RUNBOOK.md). Do not place a token
+   in a file or paste it into chat.
 3. Run `npm start` and open `http://127.0.0.1:8787` on the same computer. The server binds only to `127.0.0.1`.
    Live Create stays disabled until the operator sets
    `X_CHAT_LIVE_OWNER_USER_ID`, `X_CHAT_LIVE_OWNER_USERNAME`,
