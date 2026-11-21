@@ -21,7 +21,9 @@ team or live deployment needs a new review rather than inheriting this list.
   activity stream with bounded reconnect backoff, but X refuses
   `backfill_minutes` for this developer app, so a gap while disconnected is only
   covered by the history refresh the page runs when the stream reconnects;
-  monotonic key-version reconciliation across live delivery is still open.
+  monotonic key-version reconciliation across live delivery is still open. A tab
+  that was already open when the server process restarts may need one manual
+  reload before its stream subscription resumes.
 
 ## Product scope
 

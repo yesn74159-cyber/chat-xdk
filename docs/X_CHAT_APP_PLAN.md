@@ -1,6 +1,6 @@
 # แผนแอป X Chat: ข้อความ ลิงก์ และภาพเป็นอันดับแรก
 
-สถานะ: อัปเดต (2026-11-21) — ต้นแบบ local-only ที่ `apps/x-chat-web/` ผ่าน offline/mock/static gate ในเครื่อง (156 offline + 22 mock), มีคู่มือผู้ใช้ภาษาไทย, a11y audit บางส่วน และ cross-tab cache guard; LIVE_PASS ปิดครบแล้ว (ข้อความ/URL/ภาพสองทาง, multi-part, B-side verify, negative cases) พร้อมถอน OAuth 2.0 access token และลบไฟล์ทดสอบ — real-time events ต่อผ่าน `/api/stream` (SSE) แล้ว เหลือ UAT กับบัญชีจริง; เฟสถัดไปคือ inbox persistence; ข้อที่ติดบัญชี/สิทธิ์ดูหัวข้อ "สิ่งที่ยังติด (Blocked)"
+สถานะ: อัปเดต (2026-11-21) — ต้นแบบ local-only ที่ `apps/x-chat-web/` ผ่าน offline/mock/static gate ในเครื่อง (156 offline + 22 mock), มีคู่มือผู้ใช้ภาษาไทย, a11y audit บางส่วน และ cross-tab cache guard; LIVE_PASS ปิดครบแล้ว (ข้อความ/URL/ภาพสองทาง, multi-part, B-side verify, negative cases) พร้อมถอน OAuth 2.0 access token และลบไฟล์ทดสอบ — real-time events ผ่าน `/api/stream` (SSE) ใช้ได้จริงกับบัญชีจริงแล้ว (ยืนยันทั้ง `chat.received`/`chat.sent` + แสดงในหน้าโดยไม่ต้องรีเฟรช); เฟสถัดไปคือ inbox persistence; ข้อที่ติดบัญชี/สิทธิ์ดูหัวข้อ "สิ่งที่ยังติด (Blocked)"
 
 ## สถานะงานปัจจุบัน
 
@@ -253,7 +253,13 @@ token (ไม่ได้ขอ `offline.access`) — แอปจึงเพ�
 - [x] รับ `chat.received` และ `chat.sent`; ผูก event กับ conversation
       (normalize แล้วส่งออกทาง `/api/stream`; ฝั่งเบราว์เซอร์ refresh เฉพาะห้องที่เปิด
       อยู่ และโหลด signing keys ใหม่ผ่าน `refresh()` ตามเดิม — frame ไม่มี
-      ciphertext/token หลุดออกจากเซิร์ฟเวอร์)
+      ciphertext/token หลุดออกจากเซิร์ฟเวอร์;
+      2026-11-21 UAT กับบัญชีจริง: stream เข้าสถานะ `connected` แล้วมี
+      `chat.received` + `chat.sent` ห้องเดียวกันผ่านเข้ามาจริง และหน้าเว็บแสดง
+      ข้อความใหม่เองโดยไม่ต้องกดรีเฟรช — frame เหลือเฉพาะ metadata ที่ normalize แล้ว)
+- [ ] เบราว์เซอร์แท็บที่ค้างจากขบวนการเก่าอาจไม่ reconnect ต่อเนื่อง: ผู้ใช้ต้องรีเฟรช
+      หนึ่งครั้งหลังรีสตาร์ทเซิร์ฟเวอร์ (สังเกตในการ UAT ครั้งแรก — รอบสองบนแท็บที่โหลด
+      ใหม่เป็นเรียลไทม์ทันที) ยังไม่สรุปสาเหตุ จึงเปิดไว้เป็นข้อตามต่อ
 - [ ] ประมวล `conversation_key_change_event` ก่อน message และรักษา monotonic key-version floor
       (ตอนนี้ live frame ตั้งใจไม่ส่ง encrypted material; การเปลี่ยน key เข้ามาทาง
       history refresh ที่เรียง KeyChange ก่อน message อยู่แล้ว — floor guard
