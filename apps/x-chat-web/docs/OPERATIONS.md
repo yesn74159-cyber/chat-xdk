@@ -14,25 +14,25 @@ It is not an operations plan for a hosted or team deployment; see
 
 Configuration is read only from the server process environment:
 
-| Variable                                      | Purpose                                               | Notes                                                  |
-| --------------------------------------------- | ----------------------------------------------------- | ------------------------------------------------------ |
-| `PORT`                                        | Loopback port (default `8787`)                        | Bind is always `127.0.0.1`; do not expose it           |
-| `X_CHAT_API_MODE`                             | `live` (default) or `mock`                            | Mock is for local testing only                         |
-| `X_ACCESS_TOKEN`                              | Static user token for live X API calls                | Env-only; never `.env`, `setx`, command line or source |
-| `X_OAUTH_CLIENT_ID`                           | OAuth 2.0 client id (preferred over static token)     | Sign in at `/api/auth/login`; token stays in memory    |
-| `X_OAUTH_CLIENT_SECRET`                       | Secret for confidential OAuth clients                 | Optional for public clients using PKCE                 |
-| `X_OAUTH_REDIRECT_URI`                        | OAuth callback URL                                    | Default `http://127.0.0.1:<PORT>/api/auth/callback`    |
-| `X_OAUTH_SCOPES`                              | Space-separated OAuth scopes                          | Add `media.write`/`offline.access` when approved       |
-| `X_OAUTH_AUTHORIZE_URL`, `X_OAUTH_TOKEN_URL`  | OAuth endpoints (tests/rehearsal only)                | Default X endpoints                                    |
-| `X_API_BASE_URL`                              | X API base URL (tests only)                           | Default `https://api.x.com`                            |
-| `X_CHAT_LIVE_OWNER_USER_ID`                   | Single-use Live Create owner ID                       | All four Live Create values must be present and valid  |
-| `X_CHAT_LIVE_OWNER_USERNAME`                  | Single-use Live Create owner username                 | Env-only                                               |
-| `X_CHAT_LIVE_RECIPIENT_USER_ID`               | Single-use Live Create recipient ID                   | Env-only                                               |
-| `X_CHAT_LIVE_RECIPIENT_USERNAME`              | Single-use Live Create recipient username             | Env-only                                               |
-| `X_CHAT_BROWSER_PATH`                         | Browser binary for `test:browser` (developer/CI only) | Never needed by the app itself                         |
-| `X_CHAT_BROWSER_REQUIRED`                     | `1` turns a missing browser into a CI failure         | CI only                                                |
-| `SOAK_SECONDS`, `SOAK_CONCURRENCY`            | Soak duration and worker count                        | Probe defaults: 8s, 8 workers                          |
-| `SOAK_MAX_P95_MS`, `SOAK_MAX_HEAP_GROWTH_MIB` | Soak failure thresholds                               | Defaults: 1000 ms, 64 MiB                              |
+| Variable                                      | Purpose                                               | Notes                                                              |
+| --------------------------------------------- | ----------------------------------------------------- | ------------------------------------------------------------------ |
+| `PORT`                                        | Loopback port (default `8787`)                        | Bind is always `127.0.0.1`; do not expose it                       |
+| `X_CHAT_API_MODE`                             | `live` (default) or `mock`                            | Mock is for local testing only                                     |
+| `X_ACCESS_TOKEN`                              | Static user token for live X API calls                | Env-only; never `.env`, `setx`, command line or source             |
+| `X_OAUTH_CLIENT_ID`                           | OAuth 2.0 client id (preferred over static token)     | Sign in at `/api/auth/login`; token stays in memory                |
+| `X_OAUTH_CLIENT_SECRET`                       | Secret for confidential OAuth clients                 | Optional for public clients using PKCE                             |
+| `X_OAUTH_REDIRECT_URI`                        | OAuth callback URL                                    | Default `http://127.0.0.1:<PORT>/api/auth/callback`                |
+| `X_OAUTH_SCOPES`                              | Space-separated OAuth scopes                          | Defaults include `media.write`; add `offline.access` when approved |
+| `X_OAUTH_AUTHORIZE_URL`, `X_OAUTH_TOKEN_URL`  | OAuth endpoints (tests/rehearsal only)                | Default X endpoints                                                |
+| `X_API_BASE_URL`                              | X API base URL (tests only)                           | Default `https://api.x.com`                                        |
+| `X_CHAT_LIVE_OWNER_USER_ID`                   | Single-use Live Create owner ID                       | All four Live Create values must be present and valid              |
+| `X_CHAT_LIVE_OWNER_USERNAME`                  | Single-use Live Create owner username                 | Env-only                                                           |
+| `X_CHAT_LIVE_RECIPIENT_USER_ID`               | Single-use Live Create recipient ID                   | Env-only                                                           |
+| `X_CHAT_LIVE_RECIPIENT_USERNAME`              | Single-use Live Create recipient username             | Env-only                                                           |
+| `X_CHAT_BROWSER_PATH`                         | Browser binary for `test:browser` (developer/CI only) | Never needed by the app itself                                     |
+| `X_CHAT_BROWSER_REQUIRED`                     | `1` turns a missing browser into a CI failure         | CI only                                                            |
+| `SOAK_SECONDS`, `SOAK_CONCURRENCY`            | Soak duration and worker count                        | Probe defaults: 8s, 8 workers                                      |
+| `SOAK_MAX_P95_MS`, `SOAK_MAX_HEAP_GROWTH_MIB` | Soak failure thresholds                               | Defaults: 1000 ms, 64 MiB                                          |
 
 There is no development-only build flag. `vite build` runs the same way in
 every environment, and `tools` such as the Mock identity button are gated by

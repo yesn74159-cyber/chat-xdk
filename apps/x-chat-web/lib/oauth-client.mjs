@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { readXJson, UpstreamError } from "./upstream.mjs";
 
-export const DEFAULT_OAUTH_SCOPES = ["dm.read", "dm.write", "tweet.read", "users.read"];
+export const DEFAULT_OAUTH_SCOPES = ["dm.read", "dm.write", "tweet.read", "users.read", "media.write"];
 export const OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
 const REFRESH_SKEW_MS = 30 * 1000;
 const TOKEN_REQUEST_TIMEOUT_MS = 15_000;

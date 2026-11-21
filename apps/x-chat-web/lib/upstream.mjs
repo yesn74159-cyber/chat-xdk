@@ -7,6 +7,52 @@ export class UpstreamError extends Error {
     super(message);
     this.retryable = retryable;
     this.status = status;
+    /** @type {string} */
+    this.detail = "";
+    /** @type {string} */
+    this.requestId = "";
+  }
+}
+
+const MAX_X_PROBLEM_BYTES = 4096;
+
+async function readProblemSummary(response) {
+  if (!response.body) return "";
+  try {
+    const reader = response.body.getReader();
+    const chunks = [];
+    let total = 0;
+    while (total < MAX_X_PROBLEM_BYTES) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      total += value.byteLength;
+    }
+    await reader.cancel().catch(() => {});
+    const bytes = new Uint8Array(Math.min(total, MAX_X_PROBLEM_BYTES));
+    let offset = 0;
+    for (const chunk of chunks) {
+      if (offset >= bytes.length) break;
+      const slice = chunk.subarray(0, bytes.length - offset);
+      bytes.set(slice, offset);
+      offset += slice.byteLength;
+    }
+    const text = new TextDecoder().decode(bytes);
+    let summary;
+    try {
+      const body = JSON.parse(text);
+      summary = [body?.title, body?.type, body?.detail]
+        .filter((value) => typeof value === "string" && value.trim())
+        .join(" | ");
+    } catch {
+      summary = text;
+    }
+    return summary
+      .replace(/[\u0000-\u001f\u007f]+/g, " ")
+      .slice(0, 300)
+      .trim();
+  } catch {
+    return "";
   }
 }
 
@@ -36,11 +82,14 @@ export async function fetchX({
     throw new UpstreamError("X API request failed", { retryable: true });
   }
   if (!response.ok) {
-    throw new UpstreamError(`X API returned HTTP ${response.status}`, {
+    const error = new UpstreamError(`X API returned HTTP ${response.status}`, {
       retryable:
         response.status === 408 || response.status === 425 || response.status === 429 || response.status >= 500,
       status: response.status >= 400 && response.status < 500 ? response.status : 502,
     });
+    error.detail = await readProblemSummary(response);
+    error.requestId = response.headers.get("x-request-id") || "";
+    throw error;
   }
   return response;
 }

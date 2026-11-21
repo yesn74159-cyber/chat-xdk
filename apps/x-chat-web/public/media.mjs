@@ -39,6 +39,10 @@ export async function decryptSupportedImageStream(response, decryptor) {
       if (plaintext.length) {
         plaintextChunks.push(plaintext);
         header = addHeaderBytes(header, plaintext);
+        if (header.length >= 8 && !supportedImageMime(header)) {
+          await reader.cancel().catch(() => {});
+          throw new Error("ไฟล์ชนิดนี้ยังไม่รองรับ — แอปถอดได้เฉพาะ PNG/JPEG");
+        }
       }
     }
     const finalChunk = decryptor.finish();
@@ -52,6 +56,6 @@ export async function decryptSupportedImageStream(response, decryptor) {
     if (!finished) decryptor.free();
   }
   const mimeType = supportedImageMime(header);
-  if (!mimeType) throw new Error("ไฟล์ที่ถอดรหัสไม่ใช่ PNG/JPEG ที่รองรับ");
+  if (!mimeType) throw new Error("ไฟล์ชนิดนี้ยังไม่รองรับ — แอปถอดได้เฉพาะ PNG/JPEG");
   return { mimeType, plaintextChunks };
 }

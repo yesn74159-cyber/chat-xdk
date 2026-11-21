@@ -633,7 +633,11 @@ async function api(req, res, url) {
       const response = await xRequest(`/2/chat/media/${id}/${hash}`);
       return streamBoundedMedia(response, res, MAX_X_MEDIA_RESPONSE_BYTES);
     } catch (error) {
-      if (error?.status) console.error(`media download failed: HTTP ${error.status}`);
+      if (error?.status) {
+        const detail = error.detail ? ` — ${error.detail}` : "";
+        const requestId = error.requestId ? ` (request ${error.requestId})` : "";
+        console.error(`media download failed: HTTP ${error.status}${requestId}${detail}`);
+      }
       throw error;
     }
   }
@@ -680,7 +684,9 @@ const server = createServer(async (req, res) => {
     const file = url.pathname === "/" ? "index.html" : url.pathname.slice(1);
     return await serve(res, staticDir, file);
   } catch (error) {
-    json(res, error?.status || 400, { error: error.message, retryable: error?.retryable === true });
+    const body = { error: error.message, retryable: error?.retryable === true };
+    if (error?.detail) body.detail = error.detail;
+    json(res, error?.status || 400, body);
   }
 });
 

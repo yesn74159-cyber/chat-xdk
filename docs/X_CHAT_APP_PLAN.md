@@ -11,7 +11,7 @@
 - [x] ทำ `STATIC_PASS` สำหรับ MVP local adapter: syntax, route/input validation, body limits และ local error mapping ที่มี test รองรับ
 - [x] (2026-11-21) ถอดบัญชีทดสอบออกจากซอร์ส: Live Create target มาจาก environment 4 ตัว และ test/preflight ใช้ค่าจำลอง
 - [x] (2026-11-21) ปิดช่องว่าง STATIC_PASS ที่ทำได้: Node 20+, CI matrix 20/22, retry ใช้ `message_id` เดิม, offline แสดงข้อความที่ verify แล้วจาก cache
-- [ ] ทำ `LIVE_PASS`: บัญชีทดสอบ A/B พร้อม OAuth scopes ที่อนุมัติ (เริ่มแล้ว 2026-11-21: text/URL/PNG ผ่านด้วย static token; เหลือ JPEG/multi-part, retry, negative cases, หลักฐานฝั่ง B และ cleanup)
+- [ ] ทำ `LIVE_PASS`: บัญชีทดสอบ A/B พร้อม OAuth scopes ที่อนุมัติ (เริ่มแล้ว 2026-11-21: text/URL ผ่าน, media สองทางผ่านด้วย OAuth ที่มี `media.write` — upload จากแอปและดาวน์โหลด JPEG; เหลือ multi-part, retry, negative cases และ cleanup)
 - [ ] เพิ่ม inbox persistence, pagination และ real-time events
 - [ ] เพิ่มกลุ่ม, team workflow และ automation ตามลำดับเฟส
 
@@ -137,15 +137,31 @@
 
 เวลาเป็น UTC; alias คือ A = บัญชีเจ้าของเครื่อง local, B = คู่สนทนา; ไม่มี token, handle เต็ม, key blob หรือ plaintext ในไฟล์นี้
 
-| เวลา (UTC) | เคส | ทิศทาง | ID ที่อ้างอิง | Key version | X HTTP | ผล verify | Media bytes |
-| ---------- | --- | ------ | ------------- | ----------- | ------ | ---------- | ----------- |
-| 2026-11-21T11:34Z | text | A→B | sender ID ท้าย `…2912` (event ID ไม่ได้บันทึก) | not captured | ok (ข้อความขึ้นทั้งสองฝั่ง) | verified ทั้งฝั่ง A และ B | n-a |
-| 2026-11-21T11:34Z | url | A→B | ไม่ได้บันทึก | not captured | ok | verified | n-a |
-| 2026-11-21T11:34Z | png | A→B | ไม่ได้บันทึก | not captured | ok | verified | equal (เจ้าของบัญชี B ยืนยัน) |
-| 2026-11-21T11:34Z | reply text | B→A | sender ID ท้าย `…2912` | not captured | ok | verified ฝั่ง A | n-a |
+| เวลา (UTC)        | เคส                        | ทิศทาง | ID ที่อ้างอิง                                 | Key version  | X HTTP               | ผล verify                                     | Media bytes              |
+| ----------------- | -------------------------- | ----- | ----------------------------------------- | ------------ | -------------------- | --------------------------------------------- | ------------------------ |
+| 2026-11-21T11:34Z | text                       | A→B   | sender ID ท้าย `…2912` (event ID ไม่ได้บันทึก) | not captured | ok (ข้อความขึ้นทั้งสองฝั่ง) | verified ทั้งฝั่ง A และ B                         | n-a                      |
+| 2026-11-21T11:34Z | url                        | A→B   | ไม่ได้บันทึก                                  | not captured | ok                   | verified                                      | n-a                      |
+| 2026-11-21T11:34Z | png                        | A→B   | ไม่ได้บันทึก                                  | not captured | ok                   | verified                                      | equal (เจ้าของบัญชี B ยืนยัน) |
+| 2026-11-21T11:34Z | reply text                 | B→A   | sender ID ท้าย `…2912`                     | not captured | ok                   | verified ฝั่ง A                                 | n-a                      |
+| 2026-11-21T12:30Z | jpg (PG146.jpg)            | B→A   | sender ID ท้าย `…2912`                     | not captured | ok                   | verified: ถอดและแสดงภาพจริงในแอป               | ภาพตรงกับไฟล์ที่ส่ง           |
+| 2026-11-21T12:30Z | jpg (images.jpg)           | B→A   | sender ID ท้าย `…2912`                     | not captured | ok                   | verified: ถอดและแสดงภาพจริงในแอป               | ภาพตรงกับไฟล์ที่ส่ง           |
+| 2026-11-21T12:30Z | gif (giphy.gif)            | B→A   | sender ID ท้าย `…2912`                     | not captured | ok                   | fail-closed: ชนิดไฟล์ยังไม่รองรับ (PNG/JPEG เท่านั้น) | ไม่แสดง (ตามดีไซน์)         |
+| 2026-11-21T12:30Z | xlsx (FastClaw_Admin.xlsx) | B→A   | sender ID ท้าย `…2912`                     | not captured | ok                   | fail-closed: ชนิดไฟล์ยังไม่รองรับ                  | ไม่แสดง (ตามดีไซน์)         |
+| 2026-11-21T12:30Z | zip (PG.zip)               | B→A   | sender ID ท้าย `…2912`                     | not captured | 413                  | ไม่ดาวน์โหลด: เกินเพดาน 16 MB ของแอป             | n-a                      |
+| 2026-11-21T12:42Z | jpg upload (แอป local)     | A→B   | ไม่ได้บันทึก                                  | not captured | ok                   | verified: ส่งจากแอป local, ฝั่ง B เห็นภาพในแอป X  | ภาพตรงกับไฟล์ที่ส่ง           |
 
 หมายเหตุ: conversation ID และ key version ไม่แสดงใน UI รอบนี้ จึงไม่บันทึก;
-retry และ negative cases ยังไม่ทดสอบ; cleanup ยังไม่ทำ (token ยังใช้งาน)
+multi-part upload, retry และ negative cases ยังไม่ทดสอบ; cleanup ยังไม่ทำ (token ยังใช้งาน)
+
+2026-11-21T12:10Z (diagnostic): token ที่ใช้อยู่ตอบ `403 / type about:blank / Forbidden`
+ทั้ง `POST /2/chat/media/upload/initialize` (ทดสอบผ่าน loopback ด้วย 1 byte) และ
+`GET /2/chat/media/{id}/{hash}` — รูปแบบเดียวกับ "token ไม่มี scope หรือแอปไม่ได้รับ
+สิทธิ์ฟีเจอร์" ของ X จึงสรุปว่า token รอบนี้ไม่มี `media.write`
+
+2026-11-21T12:35Z (resolved): เปลี่ยนมาใช้ OAuth login ในแอป (`X_OAUTH_CLIENT_ID`,
+PKCE) ซึ่งขอ scope `media.write` ได้แม้ตัว Generate token ใน portal ไม่มีตัวเลือกนี้ —
+หลัง login สำเร็จ ดาวน์โหลด/ถอด media ฝั่งรับ (JPEG) ทำงาน; 12:42Z ส่งรูปจากแอป local
+ไป B สำเร็จ (ฝั่ง B เห็นภาพในแอป X) ยืนยัน upload ใช้ `media.write` ได้เช่นกัน
 
 ### P4 — Inbox ที่ใช้งานต่อเนื่องได้
 

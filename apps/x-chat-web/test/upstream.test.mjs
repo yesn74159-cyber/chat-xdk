@@ -43,6 +43,37 @@ test("bounded response reader accepts small JSON and rejects declared or streame
   assert.equal(MAX_X_JSON_RESPONSE_BYTES, 1024 * 1024);
 });
 
+test("X failures keep a bounded problem summary for diagnostics", async () => {
+  await assert.rejects(
+    fetchX({
+      baseUrl: "https://example.invalid",
+      path: "/2/chat/media/1-2/hash",
+      token: "test-token",
+      fetchImpl: async () =>
+        new Response(
+          JSON.stringify({
+            title: "Forbidden",
+            type: "https://api.x.com/2/problems/not-authorized-for-resource",
+            detail: "Not authorized",
+          }),
+          { status: 403, headers: { "content-type": "application/problem+json" } },
+        ),
+    }),
+    (error) =>
+      error instanceof UpstreamError &&
+      error.status === 403 &&
+      error.detail === "Forbidden | https://api.x.com/2/problems/not-authorized-for-resource | Not authorized",
+  );
+  const huge = await fetchX({
+    baseUrl: "https://example.invalid",
+    path: "/chat",
+    token: "test-token",
+    fetchImpl: async () => new Response("x".repeat(9000), { status: 500 }),
+  }).catch((error) => error);
+  assert.ok(huge instanceof UpstreamError);
+  assert.equal(huge.detail.length, 300);
+});
+
 test("X request wrapper applies authorization, maps failures, and times out", async () => {
   const response = await fetchX({
     baseUrl: "https://example.invalid",

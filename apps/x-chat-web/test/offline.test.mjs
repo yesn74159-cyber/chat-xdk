@@ -137,3 +137,56 @@ test("real WASM binding decrypts history, encrypts a link and round-trips an att
   assert.equal(downloaded.mimeType, "image/png");
   assert.deepEqual(Uint8Array.from(downloaded.plaintextChunks.flatMap((chunk) => [...chunk])), image);
 });
+
+test("attachment decryption rejects non PNG/JPEG bytes before finishing the stream", async () => {
+  const chat = await createChat();
+  chat.importKeys({
+    keys: base64ToBytes(vectors.private_keys_concat_b64),
+    signingKeyVersion: vectors.event_recipient_key_version,
+  });
+  chat.setIdentity({ userId: vectors.event_sender_id, signingKeyVersion: vectors.event_signing_key_version });
+  chat.setCacheKeys(true);
+  chat.setSigningKeys([
+    {
+      userId: vectors.event_sender_id,
+      publicKeyVersion: vectors.event_signing_key_version,
+      publicKey: vectors.signing_public_b64,
+      identityPublicKey: vectors.identity_public_b64,
+      identityPublicKeySignature: vectors.identity_public_key_signature_b64,
+    },
+  ]);
+  const batch = chat.decryptEvents({ events: [vectors.event_key_change_b64, vectors.event_message_b64] });
+  const gif = new Uint8Array([0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x01, 0x00, 0x01, 0x00]);
+  const mediaHashKey = "offline-gif";
+  const message = chat.encryptMessage({
+    conversationId: vectors.event_conversation_id,
+    text: "gif",
+    attachments: [
+      {
+        attachment_type: "media",
+        media_hash_key: mediaHashKey,
+        width: 1,
+        height: 1,
+        filesize_bytes: gif.length,
+        filename: "one.gif",
+        media_type: 1,
+      },
+    ],
+  });
+  const encrypted = chat.encryptFile({ file: gif, eventB64: message.eventB64, mediaHashKey });
+  const response = new Response(
+    new ReadableStream({
+      start(controller) {
+        controller.enqueue(encrypted);
+        controller.close();
+      },
+    }),
+  );
+  await assert.rejects(
+    decryptSupportedImageStream(
+      response,
+      chat.fileDecryptor({ eventB64: message.eventB64, conversationKeys: batch.conversationKeys.keys, mediaHashKey }),
+    ),
+    /ไฟล์ชนิดนี้ยังไม่รองรับ/,
+  );
+});
